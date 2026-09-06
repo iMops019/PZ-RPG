@@ -42,6 +42,7 @@ common/
         PZRPG_40_Skill_Dexterity.lua     /
       client/
         PZRPG_45_MiningContext.lua   "Mine Boulder" world context option
+        PZRPG_47_MiningOverlay.lua   depleted-boulder fade + "Depleted 1d 6h" caption
         PZRPG_50_Sheet.lua           the tabbed ISCollapsableWindow
         PZRPG_51_SheetProfile.lua    Profile tab: vanilla info + RP fields
         PZRPG_52_SheetSkills.lua     Skills tab: skills by category + XP bars

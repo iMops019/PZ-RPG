@@ -1,14 +1,15 @@
 --[[
     PZ RPG  --  ISMineBoulderAction  (MINE-1)
 
-    Swing-based, exactly like chopping a tree: no fixed duration, the Chop_tree
-    anim fires a 'ChopTree' event per swing, and on each swing we award Mining
-    XP and count a hit. After HITS_TO_DEPLETE swings the boulder yields its
-    stone / ore and goes on cooldown.
+    A normal timed action against a world boulder (the Chop_tree anim plays for
+    the visual). Duration = HITS_TO_DEPLETE * TICKS_PER_HIT. As the job delta
+    crosses each 1/HITS mark we award a "swing" -- Mining XP + sound + a little
+    pick wear -- so you see "+2 Mining" per hit. complete() drops the yield and
+    puts the boulder on cooldown.
 
-    isValid() re-checks every tick that a working pickaxe is still HELD and the
-    boulder is real and not on cooldown -- lose the pickaxe mid-swing and it
-    stops cleanly.
+    isValid() re-checks every tick that a working pickaxe is still HELD, the
+    boulder is real, and it isn't on cooldown -- lose the pickaxe or walk off
+    and it stops cleanly (stopOnWalk / stopOnRun).
 
     Load order: shared _46_. Referenced by the client context menu (PZRPG_45).
 ]]
@@ -17,14 +18,14 @@ require "TimedActions/ISBaseTimedAction"
 
 ISMineBoulderAction = ISBaseTimedAction:derive("ISMineBoulderAction")
 
+local function tuning()
+    return (PZRPG.tuning and PZRPG.tuning.mining) or {}
+end
+
 local function heldPickaxe(character)
     local h = character:getPrimaryHandItem()
     if h and not h:isBroken() and h:hasTag(ItemTag.PICK_AXE) then return h end
     return nil
-end
-
-local function hitsNeeded()
-    return (PZRPG.tuning and PZRPG.tuning.mining and PZRPG.tuning.mining.HITS_TO_DEPLETE) or 6
 end
 
 function ISMineBoulderAction:isValid()
@@ -40,36 +41,36 @@ function ISMineBoulderAction:waitToStart()
     return self.character:shouldBeTurning()
 end
 
+function ISMineBoulderAction:start()
+    self.pick = heldPickaxe(self.character)
+    self.swings = 0
+    if self.pick then
+        self.pick:setJobType("Mine Boulder")
+        self.pick:setJobDelta(0.0)
+    end
+    self:setActionAnim(CharacterActionAnims.Chop_tree)
+end
+
 function ISMineBoulderAction:update()
     self.character:faceThisObject(self.boulder)
     if instanceof(self.character, "IsoPlayer") then
         self.character:setMetabolicTarget(Metabolics.ForestryAxe)
     end
-    local pick = heldPickaxe(self.character)
-    if pick then pick:setJobDelta(self:getJobDelta()) end
+    if self.pick then self.pick:setJobDelta(self:getJobDelta()) end
 
-    -- safety: if the anim never fires 'ChopTree' for some reason, don't hang
-    self.ticks = (self.ticks or 0) + 1
-    if self.ticks > 1200 then
-        pcall(function()
-            PZRPG.mineBoulderReward(self.character)
-            PZRPG.markBoulderMined(self.boulder)
-        end)
-        self:forceComplete()
+    -- award each swing as the job delta crosses its 1/N mark
+    local need = self.hitsNeeded or 6
+    local crossed = math.floor(self:getJobDelta() * need)
+    while (self.swings or 0) < crossed do
+        self.swings = (self.swings or 0) + 1
+        local t = tuning()
+        PZRPG.addXp(self.character, "mining", t.XP_PER_HIT or 2)
+        pcall(function() self.character:getEmitter():playSound("ChopTree") end)
+        addSound(self.character, self.character:getX(), self.character:getY(), self.character:getZ(), 12, 8)
+        if self.pick and self.pick.getCondition and ZombRand(8) == 0 then
+            self.pick:setCondition(math.max(0, self.pick:getCondition() - 1))
+        end
     end
-end
-
-function ISMineBoulderAction:start()
-    self.pick = heldPickaxe(self.character)
-    self.hits = 0
-    if self.pick then
-        self.pick:setJobType("Mine Boulder")
-        self.pick:setJobDelta(0.0)
-    end
-    if self.character:isTimedActionInstant() then
-        self.hits = hitsNeeded() - 1        -- one swing finishes it
-    end
-    self:setActionAnim(CharacterActionAnims.Chop_tree)
 end
 
 function ISMineBoulderAction:stop()
@@ -82,50 +83,26 @@ function ISMineBoulderAction:perform()
     ISBaseTimedAction.perform(self)
 end
 
--- one swing landed
-function ISMineBoulderAction:animEvent(event, parameter)
-    if event ~= "ChopTree" then return end
-
-    self.hits = (self.hits or 0) + 1
-
-    local tuning = (PZRPG.tuning and PZRPG.tuning.mining) or {}
-    PZRPG.addXp(self.character, "mining", tuning.XP_PER_HIT or 2)
-
-    -- world sound + a little pick wear per swing
-    pcall(function() self.character:getEmitter():playSound("ChopTree") end)
-    addSound(self.character, self.character:getX(), self.character:getY(), self.character:getZ(), 12, 8)
-    if self.pick and self.pick.getCondition and ZombRand(8) == 0 then
-        self.pick:setCondition(math.max(0, self.pick:getCondition() - 1))
-    end
-
-    if self.hits >= hitsNeeded() then
-        pcall(function()
-            PZRPG.mineBoulderReward(self.character)
-            PZRPG.markBoulderMined(self.boulder)
-        end)
-        self:forceComplete()
-    end
-end
-
 function ISMineBoulderAction:complete()
+    pcall(function()
+        PZRPG.mineBoulderReward(self.character)
+        PZRPG.markBoulderMined(self.boulder)
+    end)
     return true
 end
 
 function ISMineBoulderAction:getDuration()
-    return -1                                -- anim-driven, like ISChopTreeAction
-end
-
--- progress bar fills per swing rather than by time
-function ISMineBoulderAction:getJobDelta()
-    return math.min(1, (self.hits or 0) / hitsNeeded())
+    local t = tuning()
+    return (t.HITS_TO_DEPLETE or 6) * (t.TICKS_PER_HIT or 55)
 end
 
 function ISMineBoulderAction:new(character, boulder)
     local o = ISBaseTimedAction.new(self, character)
     o.character        = character
     o.boulder          = boulder
-    o.hits             = 0
-    o.maxTime          = -1
+    o.hitsNeeded       = (tuning().HITS_TO_DEPLETE or 6)
+    o.swings           = 0
+    o.maxTime          = o:getDuration()
     o.caloriesModifier = 8
     o.forceProgressBar = true
     o.stopOnWalk       = true

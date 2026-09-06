@@ -19,14 +19,22 @@ project uses SemVer and is in `0.x` (anything may change).
   game is not actually paused) whenever it's open.
 
 ### Added
+- **Mining — MINE-1b**: a depleted boulder is now **faded** (`setAlpha 0.5`)
+  and captioned with a floating **"Depleted / 1d 6h"** timer above it
+  (`PZRPG_47_MiningOverlay.lua`). (Fixed: the full-screen overlay element
+  defaulted to `wantMouseEvents = true` and froze all interaction — now
+  draw-only. Also reworked `ISMineBoulderAction` from anim-driven to a normal
+  timed action with per-swing XP on job-delta thresholds, so it can't hang.) A throttled `OnTick` scans nearby squares for
+  boulders on cooldown; a full-screen UI element draws the captions and keeps
+  the fade applied; on recovery the alpha is restored and the modData cleared.
 - **Mining — MINE-1**: right-click a world boulder (`boulders_*` sprite) with a
   pickaxe in your inventory → **Mine Boulder** → `ISMineBoulderAction`
   (`PZRPG_46`). **Swing-based like chopping a tree** — anim-driven, `+2 Mining`
   bubble **per swing** (via `PZRPG.xpDrops.immediate`), progress bar fills per
-  hit; after 6 swings the boulder **drops 6–12 `Base.Stone2` + an iron-ore roll
-  on the ground** (like logs from a felled tree; `Base.IronOre` — a real B42
-  item the blacksmith furnace already smelts) with `+N Stone` / `+1 Iron Ore!`
-  halos.
+  hit; after 6 swings the boulder **drops 6–12 `Base.Stone2` + a guaranteed
+  `Base.IronOre` (+1 bonus on a level-scaled 8%→60% roll) on the ground** (like
+  logs from a felled tree; `Base.IronOre` is a real B42 item the blacksmith
+  furnace already smelts) with `+N Stone` / `+N Iron Ore!` halos.
   Pickaxe gated three ways: menu only shows with one in inventory, `isValid()`
   re-checks it's held every tick, `:start()` auto-equips it. Boulder then goes
   on a **48h (2-day) cooldown** on its own `getModData()`; the menu option

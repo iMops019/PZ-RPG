@@ -5,8 +5,8 @@
     working pickaxe somewhere in their inventory. If the boulder is on cooldown
     the option shows greyed-out with the time left.
 
-    On select: walk to the boulder, auto-equip the best pickaxe, queue
-    ISMineBoulderAction (PZRPG_46).
+    The whole handler is pcall-wrapped -- a bug in here must never stop the
+    vanilla context menu from opening.
 
     Load order: client _45_ -> after PZRPG_46 (shared) is defined.
 ]]
@@ -40,22 +40,24 @@ end
 
 --- context option callback: (worldobjects, playerObj, boulder)
 local function onMineSelected(worldobjects, playerObj, boulder)
-    if not boulder or boulder:getObjectIndex() == -1 or not boulder:getSquare() then return end
-    if PZRPG.boulderCooldown(boulder) > 0 then return end
-    if not luautils.walkAdj(playerObj, boulder:getSquare(), true) then return end
+    local ok, err = pcall(function()
+        if not boulder or boulder:getObjectIndex() == -1 or not boulder:getSquare() then return end
+        if PZRPG.boulderCooldown(boulder) > 0 then return end
+        if not luautils.walkAdj(playerObj, boulder:getSquare(), true) then return end
 
-    -- equip a pickaxe if not already holding one (best condition first)
-    if not predicatePickaxe(playerObj:getPrimaryHandItem()) then
-        local pick = playerObj:getInventory():getFirstEvalRecurse(predicatePickaxe)
-        if not pick then return end
-        ISWorldObjectContextMenu.equip(playerObj, playerObj:getPrimaryHandItem(), pick,
-            true, not playerObj:getSecondaryHandItem())
-    end
+        if not predicatePickaxe(playerObj:getPrimaryHandItem()) then
+            local pick = playerObj:getInventory():getFirstEvalRecurse(predicatePickaxe)
+            if not pick then return end
+            ISWorldObjectContextMenu.equip(playerObj, playerObj:getPrimaryHandItem(), pick,
+                true, not playerObj:getSecondaryHandItem())
+        end
 
-    ISTimedActionQueue.add(ISMineBoulderAction:new(playerObj, boulder))
+        ISTimedActionQueue.add(ISMineBoulderAction:new(playerObj, boulder))
+    end)
+    if not ok then PZRPG.log("mining: mine-select failed -- " .. tostring(err)) end
 end
 
-PZRPG.hookEvent("OnFillWorldObjectContextMenu", "mining.context", function(player, context, worldobjects, test)
+local function buildOptions(player, context, worldobjects)
     local playerObj = getSpecificPlayer(player)
     if not playerObj then return end
 
@@ -66,11 +68,16 @@ PZRPG.hookEvent("OnFillWorldObjectContextMenu", "mining.context", function(playe
     if not playerObj:getInventory():getFirstEvalRecurse(predicatePickaxe) then return end
 
     local cd = PZRPG.boulderCooldown(boulder)
-    if cd > 0 then
+    if cd and cd > 0 then
         local opt = context:addOption(("Mine Boulder  (depleted -- %s)"):format(fmtHours(cd)), nil, nil)
-        opt.notAvailable = true
+        if opt then opt.notAvailable = true end
         return
     end
 
     context:addOption("Mine Boulder", worldobjects, onMineSelected, playerObj, boulder)
+end
+
+PZRPG.hookEvent("OnFillWorldObjectContextMenu", "mining.context", function(player, context, worldobjects, test)
+    local ok, err = pcall(buildOptions, player, context, worldobjects)
+    if not ok then PZRPG.log("mining: context build failed -- " .. tostring(err)) end
 end)
