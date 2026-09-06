@@ -15,24 +15,29 @@ promise — we re-slice when reality disagrees.
 
 The foundation everything hangs on. No gameplay effect yet.
 
-1. **`PZRPG_00_Core` real:** namespace, `log`, `hookEvent`, `VERSION`,
+1. ✅ **`PZRPG_00_Core` real:** namespace, `log`, `hookEvent`, `VERSION`,
    `SAVE_VERSION`.
-2. **XP curve:** `PZRPG.curve.xpForLevel` / `levelForXp` for 1–100, in one place.
-   Unit-check the endpoints in-game via the debug console.
-3. **Save layer:** `PZRPG.getData(player)` — create + migrate on `OnCreatePlayer`
-   / `OnGameStart`. `version = SAVE_VERSION`. Verified: new character gets the
-   table; an old save loads and is migrated, not wiped.
-4. **Skill registry:** `PZRPG.registerSkill`, `PZRPG.skills`. Register **one
-   placeholder skill** ("woodcutting", no behaviour) to exercise it.
-5. **XP accessors:** `getXp` / `getLevel` / `addXp` + level-up notification.
-   Verified: `addXp` from the debug console moves the number, crosses a level,
-   fires the halo/sound.
-6. **Character sheet — the user drives this.** Stop, get the full vision (layout,
-   HUD vs pop-up, per-row content, keybind). Then build it read-only: list
-   registered skills, level, XP bar.
+2. ✅ **XP curve** (`PZRPG_00_Core`): `curve.xpForLevel` / `levelForXp`, 1–100,
+   two knobs. Debug boot dump (`-debug`) checks the endpoints + round-trip.
+3. ✅ **Save layer** (`PZRPG_01_Save`): `PZRPG.getData(player)` — create +
+   migrate on `OnCreatePlayer` / `OnGameStart`.
+4. ✅ **Skill registry** (`PZRPG_02_SkillRegistry`): `registerSkill`, `skills`,
+   `skillsByCategory`; placeholder `woodcutting` (`PZRPG_10`).
+5. ✅ **XP accessors** (`PZRPG_03_Xp`): `getXp` / `getLevel` / `getXpProgress` /
+   `addXp` + level-up halo.
+6. ✅ **Character sheet** (`PZRPG_50`–`56`, `60`): the user's RP-document design
+   — tabbed window (Profile + Skills), editable RP fields, paused first-run
+   welcome, docked/toggle modes, K keybind.
 
-Exit: open the sheet, see Woodcutting at some level, close it, save, reload, the
-number persisted.
+**Verification pass (one sitting, `-debug`):**
+- Console: `curve.dump` endpoints + round-trips match; `save: ready` line.
+- New character: paused "Welcome to PZ RPG" sheet → fill fields → Begin → game
+  resumes, sheet docks.
+- K toggles the sheet. Skills tab shows Woodcutting under "Gathering" at Lv 1.
+- `PZRPG.addXp(getPlayer(), "woodcutting", 500)` in the Lua console → level
+  moves, halo fires, Skills tab bar updates.
+- Save, quit to menu, reload: profile fields + any XP persisted; docked sheet
+  reopens where it was.
 
 ## Phase 2 — First real skill: Woodcutting
 

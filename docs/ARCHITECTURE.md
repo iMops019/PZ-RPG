@@ -1,9 +1,9 @@
 # PZ RPG — Architecture
 
-> Status: **the save layer + Core seam are being designed here now** (first
-> slice). Skill modules and the sheet UI are sketched; they firm up as we build
-> them. Read `ENGINEERING.md` for how we work and `DESIGN.md` for what we're
-> building.
+> Status: **Phase 1 Core is built** — curve, save layer, registry, XP accessors
+> (`common/media/lua/shared/PZRPG_0N_*.lua`). The character sheet is next and
+> still a sketch (§5). Read `ENGINEERING.md` for how we work and `DESIGN.md` for
+> what we're building.
 
 ---
 
@@ -17,15 +17,21 @@ common/
   media/
     lua/
       shared/
-        PZRPG_00_Core.lua          namespace, log, hookEvent, curve math,
-                                   skill registry, the save layer
+        PZRPG_00_Core.lua            namespace, log, hookEvent, VERSION, curve
+        PZRPG_01_Save.lua            per-character save table + migrations
+        PZRPG_02_SkillRegistry.lua   registerSkill / skills / skillsSorted
+        PZRPG_03_Xp.lua              getXp / getLevel / addXp / level-up
         PZRPG_10_Skill_Woodcutting.lua   \  each skill module: tuning table,
-        PZRPG_11_Skill_Mining.lua        |  event hooks -> PZRPG.addXP,
+        PZRPG_11_Skill_Mining.lua        |  event hooks -> PZRPG.addXp,
         PZRPG_12_Skill_Smithing.lua      /  level-effect code
         ...
       client/
-        PZRPG_50_CharacterSheet.lua   the sheet window (reads the registry)
-        PZRPG_60_Input.lua            keybind to open the sheet
+        PZRPG_50_Sheet.lua           the tabbed ISCollapsableWindow
+        PZRPG_51_SheetProfile.lua    Profile tab: vanilla info + RP fields
+        PZRPG_52_SheetSkills.lua     Skills tab: skills by category + XP bars
+        PZRPG_55_Welcome.lua         first-run: paused "fill your sheet" flow
+        PZRPG_56_Dock.lua            reopen a docked sheet on load
+        PZRPG_60_Input.lua           K keybind -> PZRPG_Sheet.toggle()
       server/
         (authoritative XP writes if/when MP matters; SP runs this tree too)
     sandbox-options.txt              global XP rate, per-skill enable
@@ -33,8 +39,9 @@ common/
 
 - The game loads a context **alphabetically**; the `_NN_` prefixes make load
   order a fact. `shared` loads before `client`/`server`.
-- `PZRPG_00_Core` must load first — every skill module calls `PZRPG.registerSkill`
-  and `PZRPG.hookEvent` at load time.
+- The `_0N_` Core files must load before any skill module — a skill calls
+  `PZRPG.registerSkill` / `PZRPG.hookEvent` at load time. Within Core the order
+  is Core → Save → Registry → Xp (each builds on the previous).
 - Leave number gaps so a module can slot in later.
 
 ---
@@ -51,12 +58,15 @@ Everything hangs off one global table, `PZRPG`.
 | `PZRPG.hookEvent(event, key, fn)` | fn | reload-safe `Events` registration |
 | `PZRPG.skills` | table | `id -> skill def` (the registry) |
 | `PZRPG.registerSkill(def)` | fn | a skill module registers itself |
-| `PZRPG.curve` | table | `xpForLevel(n)` / `levelForXp(xp)` — the shared 1–100 curve |
+| `PZRPG.skillsSorted()` | fn | registered skills as an array, sorted by `order` then `id` |
+| `PZRPG.curve` | table | `xpForLevel(n)` / `levelForXp(xp)` / `MAX_LEVEL` — the shared 1–100 curve |
 | `PZRPG.getData(player)` | fn | the player's `PZRPG` save table (created + migrated on demand) |
 | `PZRPG.getXp(player, skillId)` | fn | raw XP in a skill |
 | `PZRPG.getLevel(player, skillId)` | fn | level derived from XP |
-| `PZRPG.addXp(player, skillId, amount)` | fn | add XP, fire level-up, mark dirty |
-| `PZRPG.onLevelUp` | event-ish | Core notifies; skill modules / UI can listen |
+| `PZRPG.getXpProgress(player, skillId)` | fn | `into, span, fraction` within the current level (XP bars) |
+| `PZRPG.addXp(player, skillId, amount)` | fn | add XP; fires level-up on a crossing; returns `newXp, newLevel` |
+| `PZRPG.notifyLevelUp(player, skillId, old, new)` | fn | halo + log + fan out to listeners (called by `addXp`) |
+| `PZRPG.addLevelUpListener(key, fn)` | fn | register a reload-safe `fn(player, skillId, old, new)` |
 
 No bare globals. Skill modules may use a `PZRPG_Skill_<Name>` global only if they
 genuinely need a class table; prefer keeping everything in the registry def.
@@ -99,17 +109,19 @@ there's no desync to debug.
 | `OnCreatePlayer` (and `OnGameStart` for the SP player) | `PZRPG.getData(player)` — create the table if absent, then run `migrate(data)` |
 | `migrate(data)` | while `data.version < PZRPG.SAVE_VERSION`, apply the step for `data.version`, bump it. Each step is a small pure function. Never wipe. |
 | `PZRPG.addXp(...)` | mutate `data.skills[id].xp`; the game persists `getModData()` on its own save cycle. An explicit `OnSave` flush only if we find we need one. |
-| a skill registered **after** a save exists | `getData` adds its `skills[id] = {xp=0}` entry on next access — no migration needed |
+| a skill registered **after** a save exists | the XP accessors add `skills[id] = {xp=0}` on first touch — no migration needed |
 
 ### Accessors (Core API for skills)
 
 ```lua
-PZRPG.getData(player)            -> the table above (migrated)
-PZRPG.getXp(player, "woodcutting")   -> number
-PZRPG.getLevel(player, "woodcutting")-> 1..100
+PZRPG.getData(player)                  -> the table above (migrated)
+PZRPG.getXp(player, "woodcutting")     -> number
+PZRPG.getLevel(player, "woodcutting")  -> 1..100
+PZRPG.getXpProgress(player, "woodcutting")  -> into, span, fraction (XP bars)
 PZRPG.addXp(player, "woodcutting", 12)
-    -- clamps, applies PZRPG.curve, detects a level crossing,
-    -- calls PZRPG.notifyLevelUp(player, skillId, newLevel) on a crossing
+    -- ignores amount <= 0, applies PZRPG.curve, detects a level crossing,
+    -- calls PZRPG.notifyLevelUp(player, skillId, oldLevel, newLevel) on a crossing
+    -- returns newXp, newLevel
 ```
 
 Skill modules **never touch `getModData()` directly** — always through these.
@@ -141,14 +153,32 @@ This is the seam that would become a mod boundary if we ever split: Core exports
 
 ---
 
-## 5. Character sheet (sketch — slice 1, second half)
+## 5. Character sheet
 
-- Client window, opened by a keybind (`PZRPG_60_Input.lua`).
-- Iterates `PZRPG.skills` (sorted by `order`), one row per skill: name, level,
-  XP bar to next level, `describe(level)` blurb.
-- Read-only in slice 1. No allocation, no buttons beyond close.
-- **The user will detail the full vision when we start this** — layout, HUD vs
-  pop-up, what each row shows. Treat the above as a placeholder.
+A tabbed `ISCollapsableWindow` (`PZRPG_Sheet`, kept as one hidden-between-opens
+instance), opened with **K** or the first-run flow.
+
+- **Profile tab** (`PZRPG_51`): the vanilla character read-only — name,
+  profession, days/hours survived, known traits (via the `PZRPG.vanilla*`
+  helpers in `PZRPG_04_Profile`). Below, one editable text box per
+  `PZRPG.PROFILE_FIELDS` entry (alias, age, sex, height, hometown, prior
+  occupation, goal, personality, bio). Values live in
+  `getModData().PZRPG.profile.fields`; written on tab-switch / close / "Begin".
+- **Skills tab** (`PZRPG_52`): `PZRPG.skillsByCategory()` — a category header
+  then a row per skill (name, level, XP bar from `PZRPG.getXpProgress`,
+  `describe(level)` blurb). Read-only.
+- **First run** (`PZRPG_55`): if `profile.created` is false, the sheet opens
+  centered (after PZ's Survival Guide / any modal has cleared — polled with a
+  60s cap) with a dim non-blocking backdrop and only a "Begin Survival" button.
+  The game stays **live** — `setGameSpeed(0)` freezes the input loop the text
+  fields need, so we don't pause. Begin commits, `markProfileCreated`, removes
+  the backdrop, drops the window to a resting corner.
+- **Display mode** (`profile.sheetMode`): `"docked"` (default — `PZRPG_56`
+  reopens it at `profile.sheetX/Y` on load) or `"toggle"` (hidden until K). The
+  footer button flips the mode.
+
+Data model + accessors: `docs/ARCHITECTURE.md` §3 and `PZRPG_04_Profile.lua`.
+`profile` is additive to the save table — no `SAVE_VERSION` bump.
 
 ---
 
@@ -159,7 +189,8 @@ Per `ENGINEERING.md` §6. Specifics here:
 - `PZRPG = PZRPG or {}`; `PZRPG.skills = PZRPG.skills or {}` — the registry
   survives a reload; `registerSkill` overwrites its own `id` entry idempotently.
 - Event hooks go through `PZRPG.hookEvent(event, key, fn)`.
-- The sheet window is torn down and rebuilt on reload.
+- The one sheet instance lives at `PZRPG._sheet` (not on the class table, which
+  a reload replaces); `PZRPG_50_Sheet.lua` removes a stale one at load.
 - The save layer is inherently reload-safe (it reads `getModData()` fresh).
 
 ---
@@ -170,5 +201,8 @@ Per `ENGINEERING.md` §6. Specifics here:
 | --- | --- | --- |
 | 2026-09-06 | One mod, modular monolith (not core + addon mods yet) | Core API unproven; B42 local-mod deps fragile; per-slice overhead. Revisit at 1.0. `DESIGN.md` §8. |
 | 2026-09-06 | Level derived from XP, never stored | One source of truth; retune the curve with no migration. |
+| 2026-09-06 | XP curve = custom `floor(COEFF * (n-1)^EXPONENT)`, 2 knobs, not OSRS's table | Retune globally from two numbers; per-action XP stays small whole numbers. `DESIGN.md` §4. |
 | 2026-09-06 | PZ RPG data per-character in `getModData().PZRPG`, versioned + migrated | Auto-serialized, character-scoped, survives with the save. |
 | 2026-09-06 | Vanilla skills untouched, separate 1–100 track | `DESIGN.md` §3. |
+| 2026-09-06 | Character sheet = RP document (tabs: Profile + Skills), not just a skills list | User's call. Name/profession/traits read from vanilla, read-only; RP fields (`PZRPG.PROFILE_FIELDS`) editable, stored in `profile.fields`. |
+| 2026-09-06 | First-run welcome does NOT pause the sim | `setGameSpeed(0)` freezes the input loop the sheet's text fields need — the player couldn't type. Game stays live; spawn is a safe interior. (Tried pause first; reverted after in-game test.) |

@@ -71,6 +71,50 @@ the next slice on top.
 
 ## 4. Project Zomboid modding reference
 
+> **Read this section before writing any Lua.** Work like an engineer who knows
+> Kahlua/Lua/Java and PZ modding — verify API names and object types against the
+> game files *first*, don't "deploy and see". Every broken in-game test is a full
+> Steam launch + new game + spawn.
+
+### The four things that keep biting us
+
+1. **Java object ≠ Lua table.** PZ passes Java objects straight into Lua —
+   `IsoPlayer`, `IsoGameCharacter`, `InventoryItem`, `SurvivorDesc`, Java
+   `ArrayList`/`List`. `getSpecificPlayer(0)`, `player:getDescriptor()`,
+   `:getCharacterTraits()` etc. all return Java. On a Java object:
+   - No Lua string/table methods, no metatable tricks.
+   - Iterate Java lists with `:size()` + `:get(i)` (**0-based**), never
+     `ipairs`/`pairs`.
+   - `obj.methodName and obj:methodName()` existence-checks are unreliable —
+     just call it, inside `pcall` if it can legitimately be absent/nil.
+   - Know the type of every variable you hold.
+
+2. **Build 41 ≠ Build 42.** B42 (this project targets **42.20.4**) restructured
+   item scripts, `media/` layout, `common/` mod discovery, and API hooks. Most
+   online snippets are B41 and wrong. Confirm against the real install:
+   - `C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid\media\lua\**`
+     (grep vanilla for the pattern you want).
+   - `javap -cp projectzomboid.jar zombie.<pkg>.<Class>` for exact method
+     signatures (JDK: `C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot\bin`).
+
+3. **Kahlua is a sandbox** — Lua 5.1 with the standard library stripped:
+   **no `io.*`, no `os.*`**, partial `string`/`table`/`math`. So:
+   - Persistence → `getModData()` (see §Persistence), never file I/O.
+   - Time → `getGameTime()`, `getTimestampMs()`, `Calendar` — never `os.time`
+     / `os.clock`.
+   - `math.pow` may be missing — use the `^` operator.
+
+4. **Lua/OO footguns:**
+   - Defining `Foo:method` (colon) **and** `Foo.method` (dot) on the same table
+     — the second silently shadows the first. Caused a `close`→`close` stack
+     overflow. Pick distinct names for instance methods vs. static helpers.
+   - A full-screen `ISUIElement` defaults to `wantMouseEvents = true` — it will
+     **eat every click** behind it. A "purely visual" overlay must
+     `setWantMouseEvents(false)`, or just don't add one.
+   - The game runs the copy in `C:\Users\conov\Zomboid\mods\PZRPG\` — always
+     `deploy.ps1` before testing; a lua-reload alone reads the deployed copy,
+     not the repo.
+
 ### Runtime & structure
 
 | Term | Meaning |

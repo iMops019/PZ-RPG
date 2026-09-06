@@ -21,10 +21,22 @@ Repo: <https://github.com/iMops019/PZ-RPG>
 
 ## What it does right now
 
-Nothing in-game yet. This is the scaffold: repo layout, deploy tooling, docs, and
-a Core stub that only logs `[PZ RPG] loaded` so we can confirm B42 discovers the
-mod. **First real slice: the per-character save layer + a character sheet screen**
-(see the roadmap).
+**Phase 1 — the spine.** No gameplay effect yet, but the framework is in:
+
+- A shared **Core**: an XP curve (1–100, `floor(15 · (n-1)^2.5)`, two tuning
+  knobs), a per-character **save layer** (`getModData().PZRPG`, versioned +
+  migrated), a **skill registry**, and XP accessors (`getXp` / `getLevel` /
+  `addXp`) with a level-up halo.
+- A **Character Sheet** (press **K**) with two tabs:
+  - **Profile** — your vanilla name / profession / traits (read-only) plus RP
+    fields you fill in: alias, age, height, hometown, goal, personality, bio…
+  - **Skills** — registered skills by category with level + XP bar. One
+    placeholder skill so far (*Woodcutting*, no behaviour).
+- On a **new character** the sheet opens with the game paused for a
+  "fill out your sheet" beat; **Begin Survival** starts the run.
+
+Next: **Phase 2 — Woodcutting** (award XP on a tree-chop, then a level effect).
+See the roadmap.
 
 ## Project layout
 

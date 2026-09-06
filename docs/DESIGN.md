@@ -80,10 +80,12 @@ skilling game on top of it** — not a copy of OSRS, but the *feel*:
 
 - Every skill: **level 1 to 100**.
 - Each skill has an **XP total**; level is derived from XP via a shared curve.
-- **Curve _(sketch)_:** smoothly increasing, RuneScape-ish — cheap early levels,
-  a long grind to 100. Exact formula TBD; it lives in one place in Core so we can
-  retune it globally. Rough target: level 50 around the "comfortably
-  self-sufficient" mark, 100 as a genuine long-haul goal.
+- **Curve:** smoothly increasing, RuneScape-ish — cheap early levels, a long
+  grind to 100. Custom formula (not OSRS's table), one place in Core:
+  `xpForLevel(n) = floor(COEFF * (n-1)^EXPONENT)`, two tuning knobs. Defaults
+  `COEFF=15, EXPONENT=2.5` → level 100 ≈ 1.46M total XP, level 50 ≈ 252k
+  (~17% of the climb). Level 50 is the "comfortably self-sufficient" mark, 100 a
+  long-haul goal. Retune once a skill actually awards XP (Phase 2).
 - **Level-up** fires a notification (halo text + a sound) and a log line.
 
 ### How a level actually helps — the scaling rule
@@ -237,8 +239,10 @@ Core API has earned a stable version.
 
 To resolve as we reach each system:
 
-1. **XP curve** — RuneScape's exact table, or a custom smoother one? Level 100 in
-   ~how many hours of focused training for a mid skill?
+1. ~~**XP curve** — RuneScape's exact table, or a custom smoother one?~~
+   **Decided (2026-09-06):** custom smooth formula `COEFF * (n-1)^EXPONENT`, two
+   knobs in Core (`DESIGN.md` §4). Still open: hours-to-100 for a mid skill —
+   answered by tuning per-action XP in Phase 2, not by the curve.
 2. **Character sheet** — the user will walk through the full vision when we build
    it (first slice). Layout, what each row shows, keybind, whether it's a HUD
    element or a pop-up.
