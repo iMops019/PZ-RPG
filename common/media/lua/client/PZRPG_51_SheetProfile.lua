@@ -17,9 +17,10 @@ require "ISUI/ISTextEntryBox"
 
 PZRPG_ProfilePanel = ISPanel:derive("PZRPG_ProfilePanel")
 
-local PAD      = 10
-local SMALL    = UIFont.Small
-local MEDIUM   = UIFont.Medium
+local PAD         = 12
+local SCROLLBAR_W = 17          -- keep field boxes clear of the scrollbar
+local SMALL       = UIFont.Small
+local MEDIUM      = UIFont.Medium
 
 function PZRPG_ProfilePanel:new(x, y, w, h, player)
     local o = ISPanel.new(self, x, y, w, h)
@@ -38,7 +39,7 @@ function PZRPG_ProfilePanel:createChildren()
     for _, field in ipairs(PZRPG.PROFILE_FIELDS) do
         local lines  = field.lines or 1
         local boxH   = lh * lines + 8
-        local box = ISTextEntryBox:new("", PAD, 0, self.width - PAD * 2, boxH)
+        local box = ISTextEntryBox:new("", PAD, 0, self.width - PAD * 2 - SCROLLBAR_W, boxH)
         box:initialise(); box:instantiate()
         if lines > 1 then
             box:setMultipleLine(true)
@@ -133,14 +134,14 @@ function PZRPG_ProfilePanel:prerender()
     local traitStr = (#names > 0) and table.concat(names, ", ") or "(none)"
     self:drawText("Traits:", x, y, 0.7, 0.7, 0.75, 1, SMALL)
     y = y + lh
-    for i, line in ipairs(wrapLines(SMALL, traitStr, self.width - PAD * 2)) do
+    for i, line in ipairs(wrapLines(SMALL, traitStr, self.width - PAD * 2 - SCROLLBAR_W)) do
         if i > 3 then break end
         self:drawText(line, x, y, 0.85, 0.85, 0.9, 1, SMALL)
         y = y + lh
     end
 
     -- divider
-    self:drawRect(PAD, self.headerHeight + self:getYScroll() - 6, self.width - PAD * 2, 1, 0.5, 0.4, 0.4, 0.45)
+    self:drawRect(PAD, self.headerHeight + self:getYScroll() - 6, self.width - PAD * 2 - SCROLLBAR_W, 1, 0.5, 0.4, 0.4, 0.45)
 
     -- field labels (boxes are real children; labels are drawn here)
     for _, field in ipairs(PZRPG.PROFILE_FIELDS) do

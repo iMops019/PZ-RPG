@@ -6,6 +6,28 @@ project uses SemVer and is in `0.x` (anything may change).
 
 ## [Unreleased]
 
+### Changed
+- Character sheet window `560x660` -> `620x720`; both tabs reserve room for the
+  scrollbar so right-aligned text no longer clips.
+- Skills tab row layout reworked: `name / Level N` on line 1, blurb + xp text on
+  line 2, XP bar on line 3, real gaps between rows (blurbs no longer read as
+  belonging to the next skill). Brighter XP bar.
+- Keybind moved to the vanilla `keyBinding` table (like A Little Help) — shows
+  in **Options > Key Bindings > [PZ RPG]** as `PZ RPG: Character Sheet`,
+  rebindable, default **K**.
+- Sheet clears a demonstrably-stale "- Game Paused -" banner (shown while the
+  game is not actually paused) whenever it's open.
+
+### Added
+- **Full skill roster stubbed** — placeholder `registerSkill` for every skill in
+  `DESIGN.md` §5, one file each (`PZRPG_11..40_Skill_*.lua`), so the Skills tab
+  shows the whole grid grouped by category. No behaviour yet — each gets its XP
+  hook + level effect when built as its own slice, in whatever order we pick.
+  - Gathering: Woodcutting, Mining, Foraging, Fishing
+  - Production: Smithing, Firemaking, Crafting
+  - Combat: Attack, Strength, Defense, Constitution
+  - Dexterity: Dexterity (lockpicking / stealth / noise)
+
 ### Docs
 - `ENGINEERING.md` §4 opens with "the four things that keep biting us" —
   Java-object-vs-Lua-table, B41≠B42, the Kahlua sandbox (no `io`/`os`), and the

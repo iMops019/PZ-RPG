@@ -21,10 +21,18 @@ common/
         PZRPG_01_Save.lua            per-character save table + migrations
         PZRPG_02_SkillRegistry.lua   registerSkill / skills / skillsSorted
         PZRPG_03_Xp.lua              getXp / getLevel / addXp / level-up
-        PZRPG_10_Skill_Woodcutting.lua   \  each skill module: tuning table,
-        PZRPG_11_Skill_Mining.lua        |  event hooks -> PZRPG.addXp,
-        PZRPG_12_Skill_Smithing.lua      /  level-effect code
-        ...
+        PZRPG_10_Skill_Woodcutting.lua   \
+        PZRPG_11_Skill_Mining.lua        |  one file per skill. Currently just a
+        PZRPG_12_Skill_Foraging.lua      |  placeholder registerSkill{}; each
+        PZRPG_13_Skill_Fishing.lua       |  grows a tuning table, event hooks ->
+        PZRPG_20_Skill_Smithing.lua      |  PZRPG.addXp, and level-effect code
+        PZRPG_21_Skill_Firemaking.lua    |  when it's built as its own slice.
+        PZRPG_22_Skill_Crafting.lua      |  _1N_ gathering, _2N_ production,
+        PZRPG_30_Skill_Attack.lua        |  _3N_ combat, _4N_ dexterity.
+        PZRPG_31_Skill_Strength.lua      |
+        PZRPG_32_Skill_Defense.lua       |
+        PZRPG_33_Skill_Constitution.lua  |
+        PZRPG_40_Skill_Dexterity.lua     /
       client/
         PZRPG_50_Sheet.lua           the tabbed ISCollapsableWindow
         PZRPG_51_SheetProfile.lua    Profile tab: vanilla info + RP fields
@@ -174,8 +182,13 @@ instance), opened with **K** or the first-run flow.
   fields need, so we don't pause. Begin commits, `markProfileCreated`, removes
   the backdrop, drops the window to a resting corner.
 - **Display mode** (`profile.sheetMode`): `"docked"` (default — `PZRPG_56`
-  reopens it at `profile.sheetX/Y` on load) or `"toggle"` (hidden until K). The
-  footer button flips the mode.
+  reopens it at `profile.sheetX/Y` on load) or `"toggle"` (hidden until the
+  keybind). The footer button flips the mode.
+- **Keybind** (`PZRPG_60`): appended to the global `keyBinding` table as
+  `PZ RPG: Character Sheet` under a `[PZ RPG]` category, default **K** —
+  rebindable in Options > Key Bindings.
+- Window is `620 x 720`, non-resizable. Both tab panels reserve ~17px on the
+  right for the scrollbar.
 
 Data model + accessors: `docs/ARCHITECTURE.md` §3 and `PZRPG_04_Profile.lua`.
 `profile` is additive to the save table — no `SAVE_VERSION` bump.

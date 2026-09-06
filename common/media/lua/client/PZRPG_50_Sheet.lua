@@ -28,8 +28,8 @@ end
 
 PZRPG_Sheet = ISCollapsableWindow:derive("PZRPG_Sheet")
 
-local WIN_W        = 560
-local WIN_H        = 660
+local WIN_W        = 620
+local WIN_H        = 720
 local TAB_H        = 26
 local PAD          = 12
 
@@ -195,16 +195,20 @@ end
 
 function PZRPG_Sheet:prerender()
     ISCollapsableWindow.prerender(self)
-    -- While the welcome is up: keep the game live and clear any stale
-    -- "- Game Paused -" banner another mod may have left on.
-    if self.welcome and self:isReallyVisible() then
-        pcall(function()
-            if isGamePaused and isGamePaused() and setGameSpeed then setGameSpeed(1) end
-            if UIManager and UIManager.setShowPausedMessage then
-                UIManager.setShowPausedMessage(false)
-            end
-        end)
-    end
+    if not self:isReallyVisible() then return end
+    pcall(function()
+        -- During the welcome, keep the game live (text fields need the input loop).
+        if self.welcome and isGamePaused and isGamePaused() and setGameSpeed then
+            setGameSpeed(1)
+        end
+        -- Any time the sheet is open: clear a "- Game Paused -" banner that is
+        -- demonstrably stale (shown while the game is NOT actually paused --
+        -- some other mod left it on). Never touch it during a real pause.
+        if UIManager and UIManager.isShowPausedMessage and UIManager.isShowPausedMessage()
+            and isGamePaused and not isGamePaused() then
+            UIManager.setShowPausedMessage(false)
+        end
+    end)
 end
 
 -- Instance method: the title-bar X calls self:close(). Do NOT also define a

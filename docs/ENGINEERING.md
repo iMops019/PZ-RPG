@@ -133,6 +133,13 @@ the next slice on top.
   `AddXP(player, perk, amount)`, `OnTick`, `EveryOneMinute`, `EveryHours`.
 - **Keybinds: prefer `OnKeyStartPressed` over `OnKeyPressed`** — the engine skips
   it while a text field has keyboard focus, so a keybind won't fire mid-typing.
+- **Register a keybind by appending to the global `keyBinding` table** at client
+  load (not `getCore():addKeyBinding`, which doesn't give it a category):
+  `table.insert(keyBinding, { value = "[PZ RPG]", key = nil })` for the section
+  header, then `{ value = "PZ RPG: <action>", key = Keyboard.KEY_X }` for each
+  bind. Guard against duplicates by scanning for the `value` first. Read the
+  live key with `getCore():getKey("PZ RPG: <action>")`. Read at startup — a
+  restart is needed to pick up a changed default.
 - **Hot-reload hazard:** re-running a file calls `.Add` again and stacks a
   duplicate handler. Always register through `PZRPG.hookEvent` (see §6).
 

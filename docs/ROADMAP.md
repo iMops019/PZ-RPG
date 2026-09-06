@@ -39,6 +39,13 @@ The foundation everything hangs on. No gameplay effect yet.
 - Save, quit to menu, reload: profile fields + any XP persisted; docked sheet
   reopens where it was.
 
+## Phase 1.5 — Skill roster stubbed  ✅
+
+Every skill in `DESIGN.md` §5 has a placeholder `registerSkill{}` file
+(`PZRPG_1N..4N_Skill_*.lua`), so the Skills tab shows the full grid by category.
+No behaviour. From here we build them out one at a time; the phase numbers below
+are a suggested order, not a commitment — pick whichever skill next.
+
 ## Phase 2 — First real skill: Woodcutting
 
 Vertical slice of one whole skill, as the template for the rest.

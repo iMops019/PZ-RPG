@@ -2,10 +2,12 @@
     PZ RPG  --  Character Sheet : Skills tab
 
     Read-only. Registered skills from PZRPG.skillsByCategory(), one category
-    header per group, then a row per skill: name, level, an XP bar to the next
-    level, and the skill's describe(level) blurb.
+    header per group, then a row per skill:
+        line 1:  name (left)            level (right)
+        line 2:  describe(level) blurb  (dim)
+        line 3:  XP bar to next level   xp text (right)
 
-    Everything is drawn in prerender (no child widgets); the panel scrolls if
+    Everything is drawn in prerender (no child widgets); the panel scrolls when
     the list is taller than the view.
 
     Load order: client _52_ -> after PZRPG_50_Sheet.
@@ -15,12 +17,13 @@ require "ISUI/ISPanel"
 
 PZRPG_SkillsPanel = ISPanel:derive("PZRPG_SkillsPanel")
 
-local PAD       = 10
-local SMALL     = UIFont.Small
-local MEDIUM    = UIFont.Medium
-local ROW_H     = 44
-local HEADER_H  = 24
-local BAR_H     = 8
+local PAD          = 12
+local SCROLLBAR_W  = 17          -- room reserved so right-aligned text clears the scrollbar
+local SMALL        = UIFont.Small
+local MEDIUM       = UIFont.Medium
+local BAR_H        = 7
+local HEADER_GAP   = 10          -- extra space above a category header
+local ROW_GAP      = 12          -- space between skill rows
 
 function PZRPG_SkillsPanel:new(x, y, w, h, player)
     local o = ISPanel.new(self, x, y, w, h)
@@ -37,11 +40,18 @@ function PZRPG_SkillsPanel:createChildren()
     self:refresh()
 end
 
+--- Height of one skill row: name line + blurb line + bar line.
+local function rowHeight()
+    local lh = getTextManager():getFontHeight(SMALL)
+    return lh + 2 + lh + 4 + BAR_H + ROW_GAP
+end
+
 function PZRPG_SkillsPanel:refresh()
-    local groups = PZRPG.skillsByCategory()
-    local h = PAD
-    for _, g in ipairs(groups) do
-        h = h + HEADER_H + (#g.skills * ROW_H) + 6
+    local lhM = getTextManager():getFontHeight(MEDIUM)
+    local rh  = rowHeight()
+    local h   = PAD
+    for _, g in ipairs(PZRPG.skillsByCategory()) do
+        h = h + HEADER_GAP + lhM + 6 + (#g.skills * rh)
     end
     self:setScrollHeight(h + PAD)
 end
@@ -49,50 +59,54 @@ end
 function PZRPG_SkillsPanel:prerender()
     ISPanel.prerender(self)
 
-    local p      = self.player
-    local lh     = getTextManager():getFontHeight(SMALL)
-    local w      = self.width
-    local y      = PAD + self:getYScroll()
+    local p     = self.player
+    local lh    = getTextManager():getFontHeight(SMALL)
+    local lhM   = getTextManager():getFontHeight(MEDIUM)
+    local left  = PAD
+    local right = self.width - PAD - SCROLLBAR_W
+    local rh    = rowHeight()
+    local y     = PAD + self:getYScroll()
 
     local groups = PZRPG.skillsByCategory()
     if #groups == 0 then
-        self:drawText("No skills registered.", PAD, y, 0.7, 0.7, 0.7, 1, SMALL)
+        self:drawText("No skills registered.", left, y, 0.7, 0.7, 0.7, 1, SMALL)
         return
     end
 
     for _, group in ipairs(groups) do
-        self:drawText(group.category.label, PAD, y, 0.65, 0.75, 0.9, 1, MEDIUM)
-        y = y + HEADER_H
-        self:drawRect(PAD, y - 4, w - PAD * 2, 1, 0.4, 0.4, 0.4, 0.45)
+        y = y + HEADER_GAP
+        self:drawText(group.category.label, left, y, 0.62, 0.74, 0.92, 1, MEDIUM)
+        y = y + lhM + 3
+        self:drawRect(left, y, right - left, 1, 0.5, 0.45, 0.45, 0.5)
+        y = y + 3
 
         for _, def in ipairs(group.skills) do
             local level = PZRPG.getLevel(p, def.id)
             local into, span, frac = PZRPG.getXpProgress(p, def.id)
 
-            self:drawText(def.name, PAD, y, 1, 1, 1, 1, SMALL)
-            self:drawTextRight(("Level %d"):format(level), w - PAD, y, 0.9, 0.9, 0.7, 1, SMALL)
+            -- line 1: name + level
+            self:drawText(def.name, left, y, 1, 1, 1, 1, SMALL)
+            self:drawTextRight(("Level %d"):format(level), right, y, 0.92, 0.9, 0.68, 1, SMALL)
 
-            -- xp bar
-            local barY = y + lh + 3
-            local barW = w - PAD * 2
-            self:drawRect(PAD, barY, barW, BAR_H, 0.5, 0.15, 0.15, 0.18)
-            self:drawRect(PAD, barY, barW * math.max(0, math.min(1, frac)), BAR_H, 0.9, 0.35, 0.65, 0.4)
-            if level < PZRPG.curve.MAX_LEVEL then
-                self:drawTextRight(("%d / %d"):format(into, span), w - PAD, barY + BAR_H, 0.6, 0.6, 0.6, 1, SMALL)
-            else
-                self:drawTextRight("MAX", w - PAD, barY + BAR_H, 0.7, 0.7, 0.5, 1, SMALL)
-            end
-
-            -- blurb
+            -- line 2: blurb (left) + xp text (right)
             local blurb = ""
             if type(def.describe) == "function" then
                 local ok, s = pcall(def.describe, level)
                 if ok and type(s) == "string" then blurb = s end
             end
-            self:drawText(blurb, PAD, barY + BAR_H + 2, 0.6, 0.62, 0.66, 1, SMALL)
+            self:drawText(blurb, left, y + lh + 2, 0.58, 0.60, 0.64, 1, SMALL)
+            local xpText = (level < PZRPG.curve.MAX_LEVEL)
+                and ("%d / %d xp"):format(into, span) or "MAX"
+            self:drawTextRight(xpText, right, y + lh + 2, 0.55, 0.55, 0.58, 1, SMALL)
 
-            y = y + ROW_H
+            -- line 3: xp bar
+            local barY = y + lh + 2 + lh + 4
+            local barW = right - left
+            self:drawRect(left, barY, barW, BAR_H, 0.55, 0.18, 0.18, 0.22)
+            self:drawRect(left, barY, barW * math.max(0, math.min(1, frac or 0)), BAR_H,
+                1, 0.40, 0.72, 0.45)
+
+            y = y + rh
         end
-        y = y + 6
     end
 end
