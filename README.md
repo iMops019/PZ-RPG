@@ -21,22 +21,41 @@ Repo: <https://github.com/iMops019/PZ-RPG>
 
 ## What it does right now
 
-**Phase 1 — the spine.** No gameplay effect yet, but the framework is in:
+**Core (`common/media/lua/shared/PZRPG_0N_*.lua`)**
 
-- A shared **Core**: an XP curve (1–100, `floor(15 · (n-1)^2.5)`, two tuning
-  knobs), a per-character **save layer** (`getModData().PZRPG`, versioned +
-  migrated), a **skill registry**, and XP accessors (`getXp` / `getLevel` /
-  `addXp`) with a level-up halo.
-- A **Character Sheet** (press **K**) with two tabs:
-  - **Profile** — your vanilla name / profession / traits (read-only) plus RP
-    fields you fill in: alias, age, height, hometown, goal, personality, bio…
-  - **Skills** — registered skills by category with level + XP bar. One
-    placeholder skill so far (*Woodcutting*, no behaviour).
-- On a **new character** the sheet opens with the game paused for a
-  "fill out your sheet" beat; **Begin Survival** starts the run.
+- **XP curve** 1–100 — `floor(15·(n-1)^2.5)`, two tuning knobs. Level is always
+  derived from XP, never stored.
+- **Save layer** — per-character `getModData().PZRPG`, versioned + migrated.
+- **Skill registry** + XP accessors (`getXp` / `getLevel` / `getXpProgress` /
+  `addXp`); level-up halo; **XP drop** bubbles (`+15 Woodcutting`).
+- **Exertion softening** — refunds most of the endurance drain from physical
+  work (not running), so you can chop → gather → light a fire → saw without
+  collapsing. One knob (`PZRPG.exertion.ENDURANCE_REFUND`).
+- **Vanilla links** (`docs/DESIGN.md` §3a): skills trickle vanilla Fitness /
+  Strength XP (`vanillaXp`), and skills that map to a vanilla perk mirror its
+  XP (`mirrorVanilla`, e.g. Cooking ← vanilla Cooking).
+- `PZRPG.wrapAction(cls, method, fn)` — reload-safe hook onto vanilla timed
+  actions.
 
-Next: **Phase 2 — Woodcutting** (award XP on a tree-chop, then a level effect).
-See the roadmap.
+**Character Sheet** (press **K**, or Options → Key Bindings) — tabbed window:
+
+- **Profile** — vanilla name / profession / traits (read-only) + RP fields
+  (alias, age, height, hometown, goal, personality, bio…). New characters get a
+  "fill out your sheet" screen; **Begin Survival** starts the run.
+- **Skills** — the roster by category, level + XP bar + blurb.
+
+**Skills wired** (XP only unless noted — level effects come slice by slice)
+
+| | Trains from |
+|---|---|
+| Woodcutting | each axe swing at a tree |
+| Cooking / Fishing / Foraging / Smithing / Crafting / Dexterity | mirrored from the matching vanilla perk |
+| Firemaking | lighting & fuelling campfires |
+| Attack / Strength | landing melee hits |
+| Defense / Constitution | taking a hit and surviving |
+| **Constitution** | *also:* a chance to shrug off infection from a bite/scratch (L100 ≈ 55% scratch / 20% bite) |
+
+Not yet wired: **Mining** (needs new content — boulders, ore). See the roadmap.
 
 ## Project layout
 
@@ -47,10 +66,12 @@ PZ RPG/
     poster.png  icon.png        (todo)
     media/
       lua/
-        shared/                 PZRPG_00_Core and anything both sides need
-        client/                 HUD, character sheet, input
+        shared/                 PZRPG_00-08 Core (curve, save, registry, xp,
+                                exertion, mirror, wrapAction, xp-drops) +
+                                PZRPG_10-40 one file per skill
+        client/                 PZRPG_50-56 character sheet, PZRPG_60 keybind
         server/                 authoritative XP / save writes (SP runs this too)
-      sandbox-options.txt       player-facing knobs (XP rates, per-skill toggles)
+      sandbox-options.txt       player-facing knobs (todo)
   docs/
   deploy.ps1                    copy common/ into the game + enable the mod
   dev-deploy.bat                double-click wrapper

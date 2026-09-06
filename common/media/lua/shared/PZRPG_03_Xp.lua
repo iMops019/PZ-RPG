@@ -9,6 +9,9 @@
         PZRPG.getXpProgress(player, skillId)      -> into, span, fraction (for the sheet)
         PZRPG.addXp(player, skillId, amount)      -> newXp, newLevel  (fires level-up)
 
+    addXp also trickles a fraction of the XP into vanilla perks when the skill
+    def has `vanillaXp = { Fitness = 0.15, ... }` (docs/DESIGN.md sec 3a).
+
     Level-up feedback: a green arrow halo over the player + a log line, plus any
     listeners added with PZRPG.addLevelUpListener(fn).
 
@@ -63,8 +66,35 @@ end
 -- Write
 ---------------------------------------------------------------------------
 
+--- Trickle a fraction of a skill's XP into vanilla perks, per the skill def's
+--- `vanillaXp = { Fitness = 0.15, Strength = 0.08 }` map (perk name -> ratio).
+--- Silent (no halo), respects vanilla XP multipliers, fires vanilla level-ups.
+--- docs/DESIGN.md sec 3a.
+local function grantVanillaXp(player, skillId, amount)
+    local def = PZRPG.skills and PZRPG.skills[skillId]
+    if not def or type(def.vanillaXp) ~= "table" then return end
+
+    local ok, xpObj = pcall(function() return player:getXp() end)
+    if not ok or not xpObj then return end
+
+    -- Mark the re-entrant window so PZRPG_06_VanillaMirror ignores the AddXP
+    -- events we're about to fire (otherwise Woodcutting -> Fitness could loop).
+    PZRPG._vanillaFeedDepth = (PZRPG._vanillaFeedDepth or 0) + 1
+    pcall(function()
+        for perkName, ratio in pairs(def.vanillaXp) do
+            local give = amount * (tonumber(ratio) or 0)
+            if give > 0 then
+                local perk = PerkFactory.getPerkFromName(perkName)
+                if perk then xpObj:AddXP(perk, give) end
+            end
+        end
+    end)
+    PZRPG._vanillaFeedDepth = PZRPG._vanillaFeedDepth - 1
+end
+
 --- Add XP to a skill. Ignores non-positive amounts. On a level crossing, fires
---- PZRPG.notifyLevelUp. Returns the new xp total and new level.
+--- PZRPG.notifyLevelUp. Also routes def.vanillaXp into vanilla perks.
+--- Returns the new xp total and new level.
 function PZRPG.addXp(player, skillId, amount)
     if not player or type(skillId) ~= "string" then return end
 
@@ -79,6 +109,9 @@ function PZRPG.addXp(player, skillId, amount)
     local oldLevel = PZRPG.curve.levelForXp(entry.xp)
     entry.xp = entry.xp + amount
     local newLevel = PZRPG.curve.levelForXp(entry.xp)
+
+    grantVanillaXp(player, skillId, amount)
+    if PZRPG.queueXpDrop then PZRPG.queueXpDrop(player, skillId, amount) end   -- floating "+N Skill"
 
     if newLevel > oldLevel then
         PZRPG.notifyLevelUp(player, skillId, oldLevel, newLevel)

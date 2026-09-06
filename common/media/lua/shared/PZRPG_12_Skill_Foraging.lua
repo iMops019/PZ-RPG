@@ -1,18 +1,20 @@
 --[[
-    PZ RPG  --  Foraging  (placeholder)
+    PZ RPG  --  Foraging
 
-    Phase 1: registers the skill so it shows on the character sheet. No XP hook
-    and no level effect yet (docs/ROADMAP.md, docs/DESIGN.md sec 5).
+    MIRROR-1: trains off vanilla PlantScavenging XP via PZRPG_06_VanillaMirror.
+    No level effect yet (rare-find chance / more per pick come later).
 
     Load order: _12_ -> after the _0N_ Core files.
 ]]
 
 PZRPG.registerSkill{
-    id       = "foraging",
-    name     = "Foraging",
-    category = "gathering",
-    order    = 30,
-    describe = function(level)
-        return "Searching the wild for plants, materials and food. Not wired up yet."
+    id            = "foraging",
+    name          = "Foraging",
+    category      = "gathering",
+    order         = 30,
+    mirrorVanilla = { PlantScavenging = 1.0 },
+    vanillaXp     = { Fitness = 0.05 },     -- a lot of walking
+    describe      = function(level)
+        return "Searching the wild for plants, materials and food. Trains as you forage."
     end,
 }

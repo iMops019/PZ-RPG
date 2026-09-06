@@ -41,52 +41,53 @@ The foundation everything hangs on. No gameplay effect yet.
 
 ## Phase 1.5 — Skill roster stubbed  ✅
 
-Every skill in `DESIGN.md` §5 has a placeholder `registerSkill{}` file
-(`PZRPG_1N..4N_Skill_*.lua`), so the Skills tab shows the full grid by category.
-No behaviour. From here we build them out one at a time; the phase numbers below
-are a suggested order, not a commitment — pick whichever skill next.
+Every skill has a `PZRPG_1N..4N_Skill_*.lua` file so the Skills tab shows the
+full grid by category.
 
-## Phase 2 — First real skill: Woodcutting
+## Phase 2 — Wire the roster (XP) + core progression systems  ✅
 
-Vertical slice of one whole skill, as the template for the rest.
+- **Exertion softening** (`PZRPG_05`), **vanilla-XP feed** (`vanillaXp`),
+  **vanilla-perk mirror** (`PZRPG_06` / `mirrorVanilla`), **`wrapAction`**
+  (`PZRPG_07`), **XP drops** (`PZRPG_08`).
+- Every skill trains from real activity **except Mining**:
+  - Woodcutting — wraps `ISChopTreeAction:animEvent`, per swing.
+  - Cooking / Fishing / Foraging / Smithing / Crafting / Dexterity — mirrored
+    from the matching vanilla perk.
+  - Firemaking — wraps the campfire light / fuel actions.
+  - Attack / Strength — `OnWeaponHitXp`; Defense / Constitution — body-health
+    drop.
+- **CONST-EFFECT-1** — Constitution's infection-resistance effect (the first
+  level *effect*; `DESIGN.md` §4).
 
-1. **XP hook:** award Woodcutting XP when the player finishes a vanilla tree-chop.
-   Number appears on the sheet.
-2. **Tuning table:** base values + per-level curve for the chop-speed multiplier.
-3. **Level effect:** scale chop action time on the shallow curve (`DESIGN.md` §4).
-   Verified: level 1 vs a debug-set level 80 feels different, not broken.
-4. **Yield bonus:** small extra-log/twig roll at higher levels.
-5. **Polish:** level-up message names the skill; sheet blurb shows current effect.
+## Phase 3 — Level effects, slice by slice
 
-## Phase 3 — Mining + new content
+Each skill's "how a level helps" (`DESIGN.md` §4). Suggested order, not a
+commitment:
+
+- **WC-2** Woodcutting chop speed · **WC-3** yield bonus · **WC-4** polish.
+- Mining speed / ore chance / pick wear (after Phase 4 content).
+- Foraging rare-find · Fishing bite rate · Cooking nutrition & waste ·
+  Firemaking light speed & fuel efficiency · Smithing recipe-tier unlocks ·
+  Crafting quality · Dexterity stealth radius & noise.
+- More combat effects (careful — `DESIGN.md` §4).
+
+## Phase 4 — Mining content
+
+The only skill with no vanilla hook — needs new content:
 
 1. Mineable **boulder** objects (reuse vanilla rocks first; our own if needed).
 2. Right-click **Mine** with a pickaxe → timed action → Stone.
 3. **Iron Ore** item + recolored sprite; ore-chance scales with Mining level.
-4. Boulder depletion / respawn behaviour.
+4. Boulder depletion / respawn.
 5. Level effects: mine speed, ore chance, pick durability.
-
-## Phase 4 — Smithing
-
-1. Smelt Iron Ore → Iron Bar (station: reuse vanilla metalworking or add a
-   smelter).
-2. Smithing XP on smelt + forge.
-3. **Unlock tree:** metal recipes gated by Smithing level.
-4. Level effects: material waste, smithed-item durability.
-
-## Phase 5 — Combat skills
-
-Attack / Strength / Defense / Constitution. Most balance-sensitive — arrives only
-after the framework is proven. Kept modest so PZ still kills you.
-
-## Phase 6 — Dexterity
-
-Lockpicking, Stealth, Noise under one skill (split later if needed).
 
 ## Later / unscheduled
 
-- Foraging/Herbalism, Fishing, Firemaking, Crafting/Fletching.
-- Sandbox options surfaced for every tuning value.
+- Split Dexterity into Lockpicking / Stealth / Noise if it earns it.
+- Smithing "unlock tree" of metal items gated by level (`DESIGN.md` §5).
+- Sandbox options surfaced for every tuning value (now scattered in
+  `PZRPG.tuning.*`, `PZRPG.exertion`, `PZRPG.mirror`, `PZRPG.xpDrops`).
+- Wire values into an in-app Editor tab (like the Coins project).
 - Revisit **core + addon mod split** (`DESIGN.md` §8) now that the Core API is
   proven.
 - Multiplayer: make XP writes server-authoritative.

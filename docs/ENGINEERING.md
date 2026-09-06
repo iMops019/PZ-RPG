@@ -98,11 +98,15 @@ the next slice on top.
      signatures (JDK: `C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot\bin`).
 
 3. **Kahlua is a sandbox** — Lua 5.1 with the standard library stripped:
-   **no `io.*`, no `os.*`**, partial `string`/`table`/`math`. So:
+   **no `io.*`, no `os.*`**, partial `string`/`table`/`math`, and some base
+   functions missing. So:
    - Persistence → `getModData()` (see §Persistence), never file I/O.
    - Time → `getGameTime()`, `getTimestampMs()`, `Calendar` — never `os.time`
      / `os.clock`.
    - `math.pow` may be missing — use the `^` operator.
+   - **`next` is nil** ("Object tried to call nil"). Use `pairs()` (which works)
+     and, to test emptiness, iterate or track a count — don't call `next`
+     directly.
 
 4. **Lua/OO footguns:**
    - Defining `Foo:method` (colon) **and** `Foo.method` (dot) on the same table

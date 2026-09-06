@@ -19,6 +19,55 @@ project uses SemVer and is in `0.x` (anything may change).
   game is not actually paused) whenever it's open.
 
 ### Added
+- **XP drops** (`PZRPG_08_XpDrops.lua`) — a floating "+N Skill" halo over the
+  player on every skill XP gain, OSRS-style. Accumulated per skill and flushed
+  ~0.6s after the last gain (one "+15 Woodcutting", not ten "+1.5"s). Toggle
+  with `PZRPG.xpDrops.enabled`. `addXp` feeds it for every skill automatically.
+  (Fixed: `next` is nil in Kahlua — the tick handler used it and error-spammed.)
+- Per-skill tuning tables exposed at `PZRPG.tuning.<id>` for live console
+  tweaks (started with Woodcutting; `XP_PER_SWING` 10 -> 1.5).
+- **CONST-EFFECT-1** — Constitution's first level effect: a chance to shrug off
+  the Knox infection the tick a bite/scratch would transmit it (`OnPlayerUpdate`
+  watches `getBodyDamage():IsInfected()`; on a fresh true, rolls per infected
+  body part and `SetInfected(false)` on a save). L100 ≈ 55% scratch / 20% bite;
+  vanilla still decides whether infection happens, we only get the save.
+- **DEX-1** — Dexterity's stealth side mirrors vanilla `Sneak` + `Lightfoot` +
+  `Nimble`. Lockpicking deferred (no clean B42 hook). No level effect.
+- **CMB-1** — combat cluster wired, XP only (no level effects — combat is the
+  balance-sensitive one, effects come much later):
+  - **Attack** ← `OnWeaponHitXp`, `8 * hitCount`
+  - **Strength** ← `OnWeaponHitXp`, `12 * damage`
+  - **Defense** ← `OnPlayerUpdate` body-health drop (`250 * hp`, ignores <0.5
+    and >15/tick so hunger noise and death don't count)
+  - **Constitution** ← health drop at half rate + `2 * hitCount` per melee hit
+- **FIRE-1** — Firemaking wired (`PZRPG_21_Skill_Firemaking.lua`). No vanilla
+  perk maps to it, so it uses the new **`PZRPG.wrapAction(cls, method, fn)`**
+  util (`PZRPG_07_ActionWrap.lua`, reload-safe) to hook `:perform` on
+  `ISLightFromKindle` / `ISLightFromLiterature` / `ISLightFromPetrol` /
+  `ISAddFuelAction`: fire catches = 150 xp, kindling breaks = 20, add fuel = 15.
+- **MIRROR-1** — `PZRPG_06_VanillaMirror.lua` hooks `Events.AddXP` and mirrors a
+  scaled proportion of a vanilla perk's XP into any skill declaring
+  `mirrorVanilla = { <perk> = <weight> }`, times one dial
+  (`PZRPG.mirror.GLOBAL_MULT`, placeholder 5.0). Feed-depth guard stops it
+  looping with the `vanillaXp` feed. Wired: **Cooking**←Cooking,
+  **Fishing**←Fishing, **Foraging**←PlantScavenging, **Smithing**←Blacksmith
+  +MetalWelding, **Crafting**←Woodwork+Tailoring+Carving. No level effects yet.
+- **Woodcutting — WC-1** (`PZRPG_10_Skill_Woodcutting.lua`): `XP_PER_SWING = 10`.
+  Wraps `ISChopTreeAction:animEvent` (`"ChopTree"`) — `OnWeaponHitTree` turned
+  out to only fire for melee-whacking a tree, not the chop action. Wrap is
+  installed on `OnGameBoot` (that class loads after `PZRPG_10`). No level effect
+  yet (chop speed = WC-2, yield = WC-3).
+- **`vanillaXp` feed** (`PZRPG_03_Xp.lua`): `addXp` now trickles a fraction of a
+  skill's XP into vanilla perks when the def declares
+  `vanillaXp = { Fitness = 0.15, Strength = 0.08 }` (perk name -> ratio).
+  Silent, respects vanilla multipliers. Woodcutting feeds Fitness + Strength.
+- **Cooking** placeholder skill (`PZRPG_23`, Production).
+- **Exertion softening** (`PZRPG_05_Exertion.lua`) — each player-update tick,
+  refund a fraction of any endurance drop when the player isn't running, so
+  physical work is sustainable instead of "chop once, sit down". One knob,
+  `PZRPG.exertion.ENDURANCE_REFUND` (default 0.65 => work ~35% as tiring),
+  live-tunable from the `-debug` console. Fatigue softening present but off by
+  default. First deliberate vanilla rebalance — see `DESIGN.md` §3a.
 - **Full skill roster stubbed** — placeholder `registerSkill` for every skill in
   `DESIGN.md` §5, one file each (`PZRPG_11..40_Skill_*.lua`), so the Skills tab
   shows the whole grid grouped by category. No behaviour yet — each gets its XP

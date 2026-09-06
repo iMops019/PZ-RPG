@@ -62,15 +62,38 @@ skilling game on top of it** — not a copy of OSRS, but the *feel*:
 
 ## 3. Relationship to vanilla
 
-- **Vanilla skills (Carpentry, Aiming, Fitness, …) stay exactly as they are** —
-  same 0–10 levels, same XP, same perks screen. We do **not** rebalance them.
-- PZ RPG skills are a **completely separate track**: our own levels (1–100), our
-  own XP store, our own UI. There is no shared cap or shared XP pool.
-- Allowed later, carefully: PZ RPG skills may **read** vanilla state (e.g. a
-  vanilla Strength perk gives a small Woodcutting bonus) or **grant** small
-  vanilla nudges. Any such link is opt-in per skill and documented.
-- Vanilla actions we pigg-back on (chopping, foraging, combat) keep doing their
-  vanilla thing; we just also award PZ RPG XP on the same event.
+- **Vanilla skills (Carpentry, Aiming, …) stay a separate track** — same 0–10
+  levels, same XP, same perks screen. PZ RPG skills are our own 1–100 track with
+  their own XP store and UI; no shared cap or pool.
+- Vanilla actions we piggy-back on (chopping, foraging, combat) keep doing their
+  vanilla thing; we also award PZ RPG XP on the same event.
+
+### 3a. Where we *do* touch vanilla  (decided 2026-09-06)
+
+Two deliberate, tunable links — both opt-in and in one place:
+
+- **Skills feed vanilla physical perks** (`vanillaXp`). Doing PZ RPG work
+  passively trickles vanilla **Fitness / Strength** XP — realism, and the
+  physical skills stay worth training. Declared per skill: `vanillaXp = {
+  Fitness = 0.15, Strength = 0.08 }` (perk → fraction of the PZ RPG XP also
+  granted). `PZRPG.addXp` routes it.
+- **Skills mirror vanilla perks the other way** (`mirrorVanilla`, via
+  `PZRPG_06_VanillaMirror` hooking `Events.AddXP`). Where a PZ RPG skill maps
+  onto a vanilla perk — Cooking↔Cooking, Fishing↔Fishing, Foraging↔
+  PlantScavenging, Smithing↔Blacksmith/MetalWelding, Crafting↔Woodwork/
+  Tailoring/Carving, later combat — vanilla already detects the activity, so we
+  mirror a scaled proportion of that perk's XP into our skill:
+  `mirrorVanilla = { Cooking = 1.0 }`, scaled by one global dial
+  (`PZRPG.mirror.GLOBAL_MULT`). A feed-depth guard keeps the two directions
+  from looping.
+- **Exertion is softened** (`PZRPG_05_Exertion`). Vanilla endurance drains so
+  fast that work is "chop once, sit down". We refund a fraction of every
+  endurance drop (except while running) so the loop — chop a tree, gather the
+  twigs, start a fire, saw the logs — is sustainable before you're winded.
+  One knob (`PZRPG.exertion.ENDURANCE_REFUND`, default 0.65 ⇒ work ~35% as
+  tiring). Fatigue softening exists but is off by default. This *is* a vanilla
+  rebalance — a deliberate exception to "don't rebalance vanilla", because the
+  vanilla pace fights "let the player actually play".
 
 ---
 
@@ -135,6 +158,7 @@ Grouped roughly. Order of implementation is set in the ROADMAP, not here.
 | --- | --- | --- | --- |
 | **Smithing** | Smelting ore, forging at an anvil | Unlocks recipe tiers; less material waste; better durability on smithed items | Iron Ore → Iron Bar → tools/weapons/armor. **Progression = an unlock tree of "metal" items** revealed as level rises. |
 | **Firemaking** _(later)_ | Lighting/keeping fires, making charcoal | Light speed, fuel efficiency | Charcoal feeds Smithing |
+| **Cooking** _(later)_ | Preparing food (any cooking action) | Better nutrition from a meal, less burning/spoilage, fewer bad results | Fed by Foraging / Fishing / Farming; feeds survival |
 | **Crafting / Fletching** _(later)_ | Working leather, wood, bone | Recipe unlocks, quality | Ties Woodcutting + hunting |
 
 ### Combat
@@ -146,8 +170,14 @@ Grouped roughly. Order of implementation is set in the ROADMAP, not here.
 | **Defense** | Being attacked / blocking | Damage taken reduction, block chance, less durability loss on armor |
 | **Constitution** | All combat + surviving hits | Bonus effective health / injury resistance _(kept modest — PZ death is the point)_ |
 
-Combat skills are the most sensitive to balance — they arrive **late**, after the
-gathering/production loop proves the framework.
+Combat skills are the most sensitive to balance. XP wiring is in (CMB-1); level
+*effects* land carefully, one at a time.
+
+- **Constitution → infection resistance** (CONST-EFFECT-1): a chance to negate
+  the Knox infection the instant a bite/scratch would transmit it. Vanilla still
+  decides *whether* infection happens; we only get a save at transmission, never
+  a cure. L100 ≈ 55% on scratches, 20% on bites — a maxed character still dies
+  to most bites. Coefficients in `PZRPG_33_Skill_Constitution.lua` TUNING.
 
 ### Dexterity umbrella
 

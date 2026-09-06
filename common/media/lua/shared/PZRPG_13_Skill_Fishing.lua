@@ -1,18 +1,19 @@
 --[[
-    PZ RPG  --  Fishing  (placeholder)
+    PZ RPG  --  Fishing
 
-    Phase 1: registers the skill so it shows on the character sheet. No XP hook
-    and no level effect yet (docs/ROADMAP.md, docs/DESIGN.md sec 5).
+    MIRROR-1: trains off vanilla Fishing XP via PZRPG_06_VanillaMirror. No level
+    effect yet (bite rate / catch size come later).
 
     Load order: _13_ -> after the _0N_ Core files.
 ]]
 
 PZRPG.registerSkill{
-    id       = "fishing",
-    name     = "Fishing",
-    category = "gathering",
-    order    = 40,
-    describe = function(level)
-        return "Fishing rivers and lakes for food. Not wired up yet."
+    id            = "fishing",
+    name          = "Fishing",
+    category      = "gathering",
+    order         = 40,
+    mirrorVanilla = { Fishing = 1.0 },
+    describe      = function(level)
+        return "Fishing rivers and lakes. Trains as you fish."
     end,
 }

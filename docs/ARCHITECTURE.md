@@ -21,6 +21,12 @@ common/
         PZRPG_01_Save.lua            per-character save table + migrations
         PZRPG_02_SkillRegistry.lua   registerSkill / skills / skillsSorted
         PZRPG_03_Xp.lua              getXp / getLevel / addXp / level-up
+                                    (+ routes def.vanillaXp -> vanilla perks)
+        PZRPG_04_Profile.lua        RP profile + vanilla-character read views
+        PZRPG_05_Exertion.lua       softens vanilla endurance drain (DESIGN 3a)
+        PZRPG_06_VanillaMirror.lua  Events.AddXP -> mirror into skills w/ mirrorVanilla
+        PZRPG_07_ActionWrap.lua     PZRPG.wrapAction(cls, method, fn) -- reload-safe
+        PZRPG_08_XpDrops.lua        floating "+N Skill" bubbles (accumulated, flushed)
         PZRPG_10_Skill_Woodcutting.lua   \
         PZRPG_11_Skill_Mining.lua        |  one file per skill. Currently just a
         PZRPG_12_Skill_Foraging.lua      |  placeholder registerSkill{}; each
@@ -28,7 +34,8 @@ common/
         PZRPG_20_Skill_Smithing.lua      |  PZRPG.addXp, and level-effect code
         PZRPG_21_Skill_Firemaking.lua    |  when it's built as its own slice.
         PZRPG_22_Skill_Crafting.lua      |  _1N_ gathering, _2N_ production,
-        PZRPG_30_Skill_Attack.lua        |  _3N_ combat, _4N_ dexterity.
+        PZRPG_23_Skill_Cooking.lua       |  _3N_ combat, _4N_ dexterity.
+        PZRPG_30_Skill_Attack.lua        |
         PZRPG_31_Skill_Strength.lua      |
         PZRPG_32_Skill_Defense.lua       |
         PZRPG_33_Skill_Constitution.lua  |
@@ -47,9 +54,14 @@ common/
 
 - The game loads a context **alphabetically**; the `_NN_` prefixes make load
   order a fact. `shared` loads before `client`/`server`.
-- The `_0N_` Core files must load before any skill module — a skill calls
-  `PZRPG.registerSkill` / `PZRPG.hookEvent` at load time. Within Core the order
-  is Core → Save → Registry → Xp (each builds on the previous).
+- The `_0N_` Core files load before any skill module — a skill calls
+  `PZRPG.registerSkill` / `PZRPG.hookEvent` at load time. Core order:
+  `00` Core · `01` Save · `02` Registry · `03` Xp · `04` Profile · `05`
+  Exertion · `06` VanillaMirror · `07` ActionWrap · `08` XpDrops.
+- **Load-order gotcha:** vanilla `shared/TimedActions/*` loads *after* our
+  `PZRPG_1N_*` (alphabetical), so a skill that `wrapAction`s such a class must
+  do it on `OnGameBoot` (and, for `-debug` reloads, directly too — `wrapAction`
+  is idempotent). Vanilla `shared/Camping/*` loads *before* us.
 - Leave number gaps so a module can slot in later.
 
 ---
@@ -72,9 +84,19 @@ Everything hangs off one global table, `PZRPG`.
 | `PZRPG.getXp(player, skillId)` | fn | raw XP in a skill |
 | `PZRPG.getLevel(player, skillId)` | fn | level derived from XP |
 | `PZRPG.getXpProgress(player, skillId)` | fn | `into, span, fraction` within the current level (XP bars) |
-| `PZRPG.addXp(player, skillId, amount)` | fn | add XP; fires level-up on a crossing; returns `newXp, newLevel` |
+| `PZRPG.addXp(player, skillId, amount)` | fn | add XP; routes `vanillaXp`; feeds the XP drop; fires level-up; returns `newXp, newLevel` |
 | `PZRPG.notifyLevelUp(player, skillId, old, new)` | fn | halo + log + fan out to listeners (called by `addXp`) |
 | `PZRPG.addLevelUpListener(key, fn)` | fn | register a reload-safe `fn(player, skillId, old, new)` |
+| `PZRPG.skillsByCategory()` | fn | `{ {category, skills}, ... }` for the sheet |
+| `PZRPG.wrapAction(cls, method, fn)` | fn | reload-safe: run `fn(self,...)` after `cls.method` |
+| `PZRPG.exertion` | table | endurance-softening knobs (`PZRPG_05`) |
+| `PZRPG.mirror` | table | `GLOBAL_MULT` for the vanilla-perk mirror (`PZRPG_06`) |
+| `PZRPG.xpDrops` | table | floating "+N Skill" bubble knobs (`PZRPG_08`) |
+| `PZRPG.tuning` | table | per-skill tuning tables, `PZRPG.tuning.<id>` (live-tunable) |
+
+**Skill def fields:** `id`, `name`, `category`, `order`, `describe(level)`,
+optional `icon`, `vanillaXp = { <perk> = ratio }`,
+`mirrorVanilla = { <perk> = weight }`.
 
 No bare globals. Skill modules may use a `PZRPG_Skill_<Name>` global only if they
 genuinely need a class table; prefer keeping everything in the registry def.
@@ -219,3 +241,5 @@ Per `ENGINEERING.md` §6. Specifics here:
 | 2026-09-06 | Vanilla skills untouched, separate 1–100 track | `DESIGN.md` §3. |
 | 2026-09-06 | Character sheet = RP document (tabs: Profile + Skills), not just a skills list | User's call. Name/profession/traits read from vanilla, read-only; RP fields (`PZRPG.PROFILE_FIELDS`) editable, stored in `profile.fields`. |
 | 2026-09-06 | First-run welcome does NOT pause the sim | `setGameSpeed(0)` freezes the input loop the sheet's text fields need — the player couldn't type. Game stays live; spawn is a safe interior. (Tried pause first; reverted after in-game test.) |
+| 2026-09-06 | Skills feed vanilla Fitness/Strength XP; `def.vanillaXp` map routed by `addXp` | Realism + physical skills stay worth training. `DESIGN.md` §3a. |
+| 2026-09-06 | PZ RPG softens vanilla endurance drain (`PZRPG_05_Exertion`) — a deliberate vanilla rebalance | Vanilla "chop once, sit down" fights "let the player play". One knob, off-able. `DESIGN.md` §3a. |

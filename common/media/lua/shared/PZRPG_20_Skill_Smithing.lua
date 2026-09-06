@@ -1,19 +1,20 @@
 --[[
-    PZ RPG  --  Smithing  (placeholder)
+    PZ RPG  --  Smithing
 
-    Phase 1: registers the skill so it shows on the character sheet. No XP hook
-    and no level effect yet (docs/ROADMAP.md, docs/DESIGN.md sec 5). Smithing is
-    the "unlock tree" skill -- metal recipes gated by level.
+    MIRROR-1: trains off vanilla Blacksmith + MetalWelding XP via
+    PZRPG_06_VanillaMirror. No level effect yet -- the "unlock tree of metal
+    items" and material-waste / durability bonuses come later.
 
     Load order: _20_ -> after the _0N_ Core files.
 ]]
 
 PZRPG.registerSkill{
-    id       = "smithing",
-    name     = "Smithing",
-    category = "production",
-    order    = 50,
-    describe = function(level)
-        return "Smelting ore and forging metal gear at a station. Not wired up yet."
+    id            = "smithing",
+    name          = "Smithing",
+    category      = "production",
+    order         = 50,
+    mirrorVanilla = { Blacksmith = 1.0, MetalWelding = 0.7 },
+    describe      = function(level)
+        return "Smelting ore and forging metal. Trains as you smith or weld."
     end,
 }
