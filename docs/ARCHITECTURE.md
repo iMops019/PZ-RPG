@@ -28,19 +28,20 @@ common/
         PZRPG_07_ActionWrap.lua     PZRPG.wrapAction(cls, method, fn) -- reload-safe
         PZRPG_08_XpDrops.lua        floating "+N Skill" bubbles (accumulated, flushed)
         PZRPG_10_Skill_Woodcutting.lua   \
-        PZRPG_11_Skill_Mining.lua        |  one file per skill. Currently just a
-        PZRPG_12_Skill_Foraging.lua      |  placeholder registerSkill{}; each
-        PZRPG_13_Skill_Fishing.lua       |  grows a tuning table, event hooks ->
-        PZRPG_20_Skill_Smithing.lua      |  PZRPG.addXp, and level-effect code
-        PZRPG_21_Skill_Firemaking.lua    |  when it's built as its own slice.
-        PZRPG_22_Skill_Crafting.lua      |  _1N_ gathering, _2N_ production,
-        PZRPG_23_Skill_Cooking.lua       |  _3N_ combat, _4N_ dexterity.
-        PZRPG_30_Skill_Attack.lua        |
+        PZRPG_11_Skill_Mining.lua        |  one file per skill: tuning table,
+        PZRPG_12_Skill_Foraging.lua      |  event hooks / wrapAction / mirror,
+        PZRPG_13_Skill_Fishing.lua       |  and level-effect code.
+        PZRPG_20_Skill_Smithing.lua      |  _1N_ gathering, _2N_ production,
+        PZRPG_21_Skill_Firemaking.lua    |  _3N_ combat, _4N_ dexterity.
+        PZRPG_22_Skill_Crafting.lua      |
+        PZRPG_23_Skill_Cooking.lua       |  Some skills add sibling files:
+        PZRPG_30_Skill_Attack.lua        |  PZRPG_46_MineBoulderAction (shared).
         PZRPG_31_Skill_Strength.lua      |
         PZRPG_32_Skill_Defense.lua       |
         PZRPG_33_Skill_Constitution.lua  |
         PZRPG_40_Skill_Dexterity.lua     /
       client/
+        PZRPG_45_MiningContext.lua   "Mine Boulder" world context option
         PZRPG_50_Sheet.lua           the tabbed ISCollapsableWindow
         PZRPG_51_SheetProfile.lua    Profile tab: vanilla info + RP fields
         PZRPG_52_SheetSkills.lua     Skills tab: skills by category + XP bars

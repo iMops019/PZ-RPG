@@ -19,6 +19,24 @@ project uses SemVer and is in `0.x` (anything may change).
   game is not actually paused) whenever it's open.
 
 ### Added
+- **Mining — MINE-1**: right-click a world boulder (`boulders_*` sprite) with a
+  pickaxe in your inventory → **Mine Boulder** → `ISMineBoulderAction`
+  (`PZRPG_46`). **Swing-based like chopping a tree** — anim-driven, `+2 Mining`
+  bubble **per swing** (via `PZRPG.xpDrops.immediate`), progress bar fills per
+  hit; after 6 swings the boulder **drops 6–12 `Base.Stone2` + an iron-ore roll
+  on the ground** (like logs from a felled tree; `Base.IronOre` — a real B42
+  item the blacksmith furnace already smelts) with `+N Stone` / `+1 Iron Ore!`
+  halos.
+  Pickaxe gated three ways: menu only shows with one in inventory, `isValid()`
+  re-checks it's held every tick, `:start()` auto-equips it. Boulder then goes
+  on a **48h (2-day) cooldown** on its own `getModData()`; the menu option
+  shows greyed-out with the time left. Iron-ore chance `8% → 25%` over 1–100.
+  Tuning at `PZRPG.tuning.mining`.
+- **Woodcutting — WC-2**: level-scaled chop-speed bonus. After each vanilla
+  swing, shave `base * SPEED_MAX * (lvl/100)^SPEED_EXP` extra off the tree's
+  health (never below 1 — vanilla always lands the felling blow). Defaults
+  `SPEED_MAX 0.80 / SPEED_EXP 1.8` → ~+7% at L25, +23% at L50, +80% at L100.
+  Sheet blurb shows the current %.
 - **XP drops** (`PZRPG_08_XpDrops.lua`) — a floating "+N Skill" halo over the
   player on every skill XP gain, OSRS-style. Accumulated per skill and flushed
   ~0.6s after the last gain (one "+15 Woodcutting", not ten "+1.5"s). Toggle

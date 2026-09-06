@@ -73,13 +73,16 @@ commitment:
 
 ## Phase 4 — Mining content
 
-The only skill with no vanilla hook — needs new content:
+The only skill with no vanilla activity to hook.
 
-1. Mineable **boulder** objects (reuse vanilla rocks first; our own if needed).
-2. Right-click **Mine** with a pickaxe → timed action → Stone.
-3. **Iron Ore** item + recolored sprite; ore-chance scales with Mining level.
-4. Boulder depletion / respawn.
-5. Level effects: mine speed, ore chance, pick durability.
+- **MINE-1 ✅** — right-click B42's world `boulders_*` tiles with a pickaxe →
+  `ISMineBoulderAction` → `Base.Stone2` + `Base.IronOre` (both real B42 items;
+  no new sprites) + Mining XP. Per-boulder 2-day cooldown on `getModData()`.
+  Iron-ore chance scales 8→25% over 1–100.
+- **MINE-1b** — depleted-boulder visuals: `setAlpha` fade + floating
+  "Depleted — 1d 6h" text (`PZRPG_47_MiningOverlay`, client).
+- **MINE-2** — mine-speed & pick-wear level effects; maybe a real depletion
+  (sprite swap) instead of just a cooldown; coal / other ores.
 
 ## Later / unscheduled
 

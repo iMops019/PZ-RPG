@@ -19,9 +19,24 @@ PZRPG.xpDrops = PZRPG.xpDrops or {
                           -- Must exceed the gap between repeated gains (a chop swing
                           -- is ~1.5-2s) so a whole tree reads as one "+15", not many.
     MIN_SHOWN   = 1,      -- skip a bubble whose rounded total is below this
+
+    -- skills that show a bubble on EVERY gain (no accumulation) -- for actions
+    -- where seeing each hit is the point
+    immediate = { mining = true },
 }
 
 PZRPG._xpPending = PZRPG._xpPending or {}   -- skillId -> { amount, idle, player }
+
+local function showBubble(player, skillId, n)
+    if n < (PZRPG.xpDrops.MIN_SHOWN or 1) then return end
+    local def  = PZRPG.skills and PZRPG.skills[skillId]
+    local name = (def and def.name) or skillId
+    pcall(function()
+        if HaloTextHelper and HaloTextHelper.addText then
+            HaloTextHelper.addText(player, ("+%d %s"):format(n, name))
+        end
+    end)
+end
 
 --- Called by PZRPG.addXp on every gain.
 function PZRPG.queueXpDrop(player, skillId, amount)
@@ -29,6 +44,11 @@ function PZRPG.queueXpDrop(player, skillId, amount)
     if not player or type(skillId) ~= "string" then return end
     amount = tonumber(amount) or 0
     if amount <= 0 then return end
+
+    if PZRPG.xpDrops.immediate and PZRPG.xpDrops.immediate[skillId] then
+        showBubble(player, skillId, math.floor(amount + 0.5))
+        return
+    end
 
     local p = PZRPG._xpPending[skillId]
     if not p then p = { amount = 0 }; PZRPG._xpPending[skillId] = p end
@@ -39,15 +59,7 @@ end
 
 local function flush(skillId, p)
     PZRPG._xpPending[skillId] = nil
-    local n = math.floor(p.amount + 0.5)
-    if n < (PZRPG.xpDrops.MIN_SHOWN or 1) then return end
-    local def  = PZRPG.skills and PZRPG.skills[skillId]
-    local name = (def and def.name) or skillId
-    pcall(function()
-        if HaloTextHelper and HaloTextHelper.addText then
-            HaloTextHelper.addText(p.player, ("+%d %s"):format(n, name))
-        end
-    end)
+    showBubble(p.player, skillId, math.floor(p.amount + 0.5))
 end
 
 PZRPG.hookEvent("OnTick", "xpdrops.tick", function()
