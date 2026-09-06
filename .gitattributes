@@ -1,0 +1,16 @@
+# Normalize everything to LF in the repo
+* text=auto eol=lf
+
+# Windows-only helpers stay CRLF on checkout
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+
+# PZ's mod.info / *.txt config parsers split on CRLF - force it
+mod.info text eol=crlf
+*.info   text eol=crlf
+
+# Binary assets
+*.png binary
+*.zip binary
+*.ogg binary
+*.x    binary
