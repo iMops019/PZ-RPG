@@ -19,6 +19,15 @@ project uses SemVer and is in `0.x` (anything may change).
   game is not actually paused) whenever it's open.
 
 ### Added
+- **Defense — DEF-EFFECT-1**: the body-health drop `PZRPG_32` already watches
+  for XP is now also *mitigated*. Per qualifying hit: roll a **block**
+  (`0 → 20%` at L100) → the whole tick's HP loss is refunded
+  (`bd:AddGeneralHealth`) same-tick + a "Defense: blocked!" halo; a non-block
+  still refunds `loss × reduction` (`0 → 30%` at L100). Only general health is
+  touched — the wound (scratch/bleed/fracture) still lands (that's Constitution).
+  Conservative: maxed ≈ 44% average damage reduction, a bite still infects, you
+  still bleed. A real pre-hit dodge (`setAvoidDamage`) is DEF-EFFECT-2. Tuning
+  at `PZRPG.tuning.defense`.
 - **Strength — STR-EFFECT-1**: raw melee damage. The held weapon's min/max
   damage is scaled `× (1 + 0.30·(lvl/100)^1.4)` — ~+4% at L25, +11% at L50,
   +20% at L75, **+30% at L100**. "Moderate" tier (offensive skill: above the

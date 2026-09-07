@@ -209,12 +209,17 @@ already watch for XP (same idiom as `PZRPG_05_Exertion`).
   ctor + a `setMaxWeight` the game calls from somewhere not yet pinned down —
   `setMaxWeightBase` and `maxWeightDelta` are the candidate knobs) needs
   understanding first. Its own slice.
-- **Defense → block chance & damage reduction** (DEF-EFFECT-1, planned): on the
-  body-health drop we already watch, roll a block (`0 → ~25 %` at L100) that
-  refunds the whole tick's loss ("blocked!"); a failed roll still refunds
-  `loss × reduction` (`0 → 0.30` at L100). A true pre-hit dodge via the one-shot
-  `setAvoidDamage` flag is possible but timing-fragile — deferred to
-  DEF-EFFECT-2.
+- **Defense → block chance & damage reduction** (DEF-EFFECT-1): on the
+  body-health drop `PZRPG_32` already watches for XP, roll a block
+  (`0 → 20 %` at L100, `(lvl/100)^1.5`) that hands the whole tick's loss back
+  ("Defense: blocked!"); a failed roll still hands back `loss × reduction`
+  (`0 → 30 %` at L100, `(lvl/100)^1.3`). Refund is `bd:AddGeneralHealth` on the
+  same tick, so the bar barely flickers. Only *general* health is touched — the
+  wound (scratch / bleed / fracture) still lands; that's Constitution's lane.
+  Conservative by design: a maxed Defense ≈ 44 % average damage reduction, a
+  bite still infects. A true pre-hit dodge via the one-shot `setAvoidDamage`
+  flag is possible but timing-fragile — deferred to DEF-EFFECT-2.
+  `PZRPG_32_Skill_Defense.lua` TUNING.
 - **Constitution → infection resistance** (CONST-EFFECT-1): a chance to negate
   the Knox infection the instant a bite/scratch would transmit it. Vanilla still
   decides *whether* infection happens; we only get a save at transmission, never
