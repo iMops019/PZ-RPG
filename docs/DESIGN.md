@@ -165,19 +165,56 @@ Grouped roughly. Order of implementation is set in the ROADMAP, not here.
 
 | Skill | Trains by | Level effect _(sketch)_ |
 | --- | --- | --- |
-| **Attack** | Landing melee hits | Accuracy / hit chance, unlocks weapon-type proficiency |
+| **Attack** | Landing melee hits | Melee **stamina efficiency** — swings cost less endurance, so you last longer in a fight (pairs with Fitness for an end-game power spike, by design) |
 | **Strength** | Landing melee hits (damage-dealt weighted) | Melee damage, shove force, carry capacity |
 | **Defense** | Being attacked / blocking | Damage taken reduction, block chance, less durability loss on armor |
 | **Constitution** | All combat + surviving hits | Bonus effective health / injury resistance _(kept modest — PZ death is the point)_ |
 
 Combat skills are the most sensitive to balance. XP wiring is in (CMB-1); level
-*effects* land carefully, one at a time.
+*effects* land carefully, one at a time. Ceiling is **conservative for the
+defensive skills** (a maxed fighter is better but PZ still kills you fast) but
+**Attack + Fitness is allowed to feel like a god by end-game** — that's the
+intended reward for a deep melee-survival grind (decided 2026-09-06).
 
+B42 melee resolution is entirely Java-side — no Lua hook sits inside the
+hit/damage/endurance calculation. So combat effects work one of two ways:
+**(a) top up the equipped weapon instance's own stats** (`setEnduranceMod`,
+`setExtraDamage`, `setHitChance` — `CombatManager` reads these live each swing),
+reconciled against a per-item stored "how much we last changed it" so it's
+swap-safe and never compounds; or **(b) a per-tick delta on the character**
+(`setMaxWeightDelta`) or a post-hit health refund on the body-health drop we
+already watch for XP (same idiom as `PZRPG_05_Exertion`).
+
+- **Attack → melee stamina efficiency** (ATK-EFFECT-1): Attack is the *survival
+  stamina* skill, not accuracy. While a melee weapon is equipped, its
+  `enduranceMod` (the multiplier on a swing's endurance cost) is scaled down as
+  Attack rises: `factor = 1 - 0.85·(lvl/100)^1.5` → ~11 % cheaper at L25, 30 %
+  at L50, 55 % at L75, **85 % at L100**. Stacks *multiplicatively* on top of
+  `PZRPG_05_Exertion`'s flat 65 % refund, so a maxed character's swings are
+  nearly free — the deliberate Attack + Fitness end-game payoff. Method (a):
+  `PZRPG_30` reconciles the held weapon each `OnPlayerUpdate`, storing the
+  applied factor on the weapon's modData so a re-hold / level-up / reload never
+  compounds it. Hit chance is left alone. Coefficients in
+  `PZRPG_30_Skill_Attack.lua` TUNING. Candidate follow-ups (ATK-EFFECT-2):
+  let a high level attack through the exhausted-endurance lockout
+  (`setCantAttackWithLowestEndurance`).
+- **Strength → melee damage & carry** (STR-EFFECT-1, planned): weapon
+  `extraDamage` `+0 → +0.35` at L100 (≈ +18–23 % on an axe, ~1.1× at L50) via
+  method (a); carry capacity `+0 → +8 kg` via `setMaxWeightDelta` (method b).
+- **Defense → block chance & damage reduction** (DEF-EFFECT-1, planned): on the
+  body-health drop we already watch, roll a block (`0 → ~25 %` at L100) that
+  refunds the whole tick's loss ("blocked!"); a failed roll still refunds
+  `loss × reduction` (`0 → 0.30` at L100). A true pre-hit dodge via the one-shot
+  `setAvoidDamage` flag is possible but timing-fragile — deferred to
+  DEF-EFFECT-2.
 - **Constitution → infection resistance** (CONST-EFFECT-1): a chance to negate
   the Knox infection the instant a bite/scratch would transmit it. Vanilla still
   decides *whether* infection happens; we only get a save at transmission, never
   a cure. L100 ≈ 55% on scratches, 20% on bites — a maxed character still dies
   to most bites. Coefficients in `PZRPG_33_Skill_Constitution.lua` TUNING.
+- **Constitution → resilience** (CONST-EFFECT-2, planned): injury-side, *not*
+  more flat damage reduction (that's Defense's lane) — slower bleed, reduced
+  pain, slightly faster body-part regen. Kept modest.
 
 ### Dexterity umbrella
 

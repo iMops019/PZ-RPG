@@ -19,6 +19,19 @@ project uses SemVer and is in `0.x` (anything may change).
   game is not actually paused) whenever it's open.
 
 ### Added
+- **Attack — ATK-EFFECT-1**: first combat *level effect*. Attack is the melee
+  **stamina** skill — the higher the level, the less endurance a swing costs, so
+  you last longer in a fight. The held weapon's `enduranceMod` is scaled down
+  `factor = 1 - 0.85·(lvl/100)^1.5` (~11% cheaper at L25, 30% at L50, 55% at
+  L75, **85% at L100**), stacking *multiplicatively* on top of
+  `PZRPG_05_Exertion`'s flat 65% refund — a maxed Attack + Fitness character's
+  swings are nearly free, by design. `CombatManager` reads `enduranceMod` off
+  the `HandWeapon` each swing; B42 exposes no Lua hook inside the drain calc.
+  Stack-safe: the applied factor is stored on the weapon's `getModData()` and
+  reconciled every `OnPlayerUpdate` (divide it back out, recompute from level,
+  re-apply), so a level-up / weapon swap / `-debug` reload never compounds it.
+  Hit chance is deliberately not touched. Attack now also trickles vanilla
+  Fitness (`vanillaXp = { Fitness = 0.08 }`). Tuning at `PZRPG.tuning.attack`.
 - **Mining — MINE-1b**: a depleted boulder is now **faded** (`setAlpha 0.5`)
   and captioned with a floating **"Depleted / 1d 6h"** timer above it
   (`PZRPG_47_MiningOverlay.lua`). (Fixed: the full-screen overlay element

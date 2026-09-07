@@ -69,7 +69,12 @@ commitment:
 - Foraging rare-find · Fishing bite rate · Cooking nutrition & waste ·
   Firemaking light speed & fuel efficiency · Smithing recipe-tier unlocks ·
   Crafting quality · Dexterity stealth radius & noise.
-- More combat effects (careful — `DESIGN.md` §4).
+- **Combat effects, one slice each** (careful — `DESIGN.md` §4/§5). Defensive
+  skills stay conservative; Attack + Fitness is allowed to spike end-game.
+  **ATK-EFFECT-1 ✅** melee swings cost less endurance (held-weapon
+  `enduranceMod`). Next: **STR-EFFECT-1** melee damage + carry capacity ·
+  **DEF-EFFECT-1** block chance + damage reduction · **CONST-EFFECT-2**
+  resilience (bleed/pain/regen).
 
 ## Phase 4 — Mining content
 
