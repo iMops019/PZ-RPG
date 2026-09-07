@@ -19,6 +19,16 @@ project uses SemVer and is in `0.x` (anything may change).
   game is not actually paused) whenever it's open.
 
 ### Added
+- **Strength — STR-EFFECT-1**: raw melee damage. The held weapon's min/max
+  damage is scaled `× (1 + 0.30·(lvl/100)^1.4)` — ~+4% at L25, +11% at L50,
+  +20% at L75, **+30% at L100**. "Moderate" tier (offensive skill: above the
+  conservative defensive ceiling, below Attack+Fitness). B42 rolls swing damage
+  off the `HandWeapon` instance; no Lua hook in the damage calc. Same
+  stack-safe reconcile as Attack — the applied factor lives on the weapon's
+  `getModData()` (`PZRPG_strDmg`), divided back out each `OnPlayerUpdate` to
+  recover the true base before re-applying. Also trickles vanilla Strength
+  (`vanillaXp = { Strength = 0.06 }`). Carry capacity + shove force are
+  STR-EFFECT-2. Tuning at `PZRPG.tuning.strength`.
 - **Attack — ATK-EFFECT-1**: first combat *level effect*. Attack is the melee
   **stamina** skill — the higher the level, the less endurance a swing costs, so
   you last longer in a fight. The held weapon's `enduranceMod` is scaled down

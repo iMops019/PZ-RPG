@@ -166,7 +166,7 @@ Grouped roughly. Order of implementation is set in the ROADMAP, not here.
 | Skill | Trains by | Level effect _(sketch)_ |
 | --- | --- | --- |
 | **Attack** | Landing melee hits | Melee **stamina efficiency** — swings cost less endurance, so you last longer in a fight (pairs with Fitness for an end-game power spike, by design) |
-| **Strength** | Landing melee hits (damage-dealt weighted) | Melee damage, shove force, carry capacity |
+| **Strength** | Landing melee hits (damage-dealt weighted) | Melee **damage** (STR-EFFECT-1); shove force + carry capacity (STR-EFFECT-2) |
 | **Defense** | Being attacked / blocking | Damage taken reduction, block chance, less durability loss on armor |
 | **Constitution** | All combat + surviving hits | Bonus effective health / injury resistance _(kept modest — PZ death is the point)_ |
 
@@ -198,9 +198,17 @@ already watch for XP (same idiom as `PZRPG_05_Exertion`).
   `PZRPG_30_Skill_Attack.lua` TUNING. Candidate follow-ups (ATK-EFFECT-2):
   let a high level attack through the exhausted-endurance lockout
   (`setCantAttackWithLowestEndurance`).
-- **Strength → melee damage & carry** (STR-EFFECT-1, planned): weapon
-  `extraDamage` `+0 → +0.35` at L100 (≈ +18–23 % on an axe, ~1.1× at L50) via
-  method (a); carry capacity `+0 → +8 kg` via `setMaxWeightDelta` (method b).
+- **Strength → melee damage** (STR-EFFECT-1): the held weapon's min/max damage
+  is scaled `× (1 + 0.30·(lvl/100)^1.4)` → ~+4 % at L25, +11 % at L50, +20 % at
+  L75, **+30 % at L100**. Offensive skill, so "moderate" — above the defensive
+  ceiling, below Attack+Fitness. Method (a), same reconcile as Attack (factor
+  stored on the weapon's modData). Also trickles vanilla Strength
+  (`vanillaXp = { Strength = 0.06 }`). `PZRPG_31_Skill_Strength.lua` TUNING.
+- **Strength → carry capacity & shove** (STR-EFFECT-2, planned): B42's
+  carry-weight recalc (`IsoGameCharacter.maxWeight`, an int only written in the
+  ctor + a `setMaxWeight` the game calls from somewhere not yet pinned down —
+  `setMaxWeightBase` and `maxWeightDelta` are the candidate knobs) needs
+  understanding first. Its own slice.
 - **Defense → block chance & damage reduction** (DEF-EFFECT-1, planned): on the
   body-health drop we already watch, roll a block (`0 → ~25 %` at L100) that
   refunds the whole tick's loss ("blocked!"); a failed roll still refunds
