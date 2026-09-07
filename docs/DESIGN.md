@@ -150,7 +150,7 @@ Grouped roughly. Order of implementation is set in the ROADMAP, not here.
 | **Woodcutting** | Chopping trees | Faster chop, small yield bonus | Logs, twigs, branches → Carpentry / Firemaking / Smithing (charcoal) |
 | **Mining** | Mining boulders with a pickaxe | Faster mine, better ore chance, less pick wear | Stone, **Iron Ore**, (later: coal, other ores) → Smithing |
 | **Foraging / Herbalism** _(later)_ | Foraging (vanilla zones) | Rare-find chance, more per pick | Plants → Cooking / medicine |
-| **Fishing** _(later)_ | Fishing | Bite rate, size | Food, materials |
+| **Fishing** | Right-click water with a rod → `ISPZRPGFishAction` (custom action, not the vanilla minigame — FISH-2) | Bite rate ↑, better/bigger species unlock, less junk; bait optional (flat bite bonus) | Fish (custom level-gated list of real B42 fish items) → Cooking |
 
 ### Production
 

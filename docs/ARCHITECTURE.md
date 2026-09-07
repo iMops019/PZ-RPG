@@ -35,13 +35,15 @@ common/
         PZRPG_21_Skill_Firemaking.lua    |  _3N_ combat, _4N_ dexterity.
         PZRPG_22_Skill_Crafting.lua      |
         PZRPG_23_Skill_Cooking.lua       |  Some skills add sibling files:
-        PZRPG_30_Skill_Attack.lua        |  PZRPG_46_MineBoulderAction (shared).
+        PZRPG_30_Skill_Attack.lua        |  PZRPG_46_MineBoulderAction (shared),
+                                        |  PZRPG_48_FishAction (shared).
         PZRPG_31_Skill_Strength.lua      |  Combat _3N_ files carry both the XP
         PZRPG_32_Skill_Defense.lua       |  hook and the level effect (ATK/STR:
         PZRPG_33_Skill_Constitution.lua  |  held-weapon stat top-up; DEF/CONST:
                                         |  OnPlayerUpdate health/wound nudges).
         PZRPG_40_Skill_Dexterity.lua     /
       client/
+        PZRPG_44_FishingContext.lua  "Fish Here" water context option
         PZRPG_45_MiningContext.lua   "Mine Boulder" world context option
         PZRPG_47_MiningOverlay.lua   depleted-boulder fade + "Depleted 1d 6h" caption
         PZRPG_50_Sheet.lua           the tabbed ISCollapsableWindow
@@ -249,3 +251,5 @@ Per `ENGINEERING.md` §6. Specifics here:
 | 2026-09-06 | Combat level effects: two mechanisms only — (a) top up the equipped `HandWeapon` instance's own stats, reconciled against a factor/delta stored on the weapon's modData so it never compounds; (b) per-tick `OnPlayerUpdate` health/wound nudges (`AddGeneralHealth`, `setBleedingTime`). | B42 melee resolution is 100% Java-side — no Lua hook inside the hit/damage/endurance/bleed calc. `DESIGN.md` §5. |
 | 2026-09-06 | Combat ceiling: conservative for the defensive skills; **Attack + Fitness is allowed to feel god-tier by end-game** | Deliberate reward for a deep melee-survival grind; the defensive skills stay grounded because "PZ death is the point". User's call. `DESIGN.md` §5. |
 | 2026-09-06 | Split: **Defense** = general-health damage reduction; **Constitution** = wound-side resilience (bleed/regen) + infection resist | Keeps the two "take a hit" skills distinct instead of both being flat DR. User's call (Choice 1). |
+| 2026-09-06 | **Fishing = a custom world action** (`ISPZRPGFishAction`, right-click water), not the vanilla cast/reel minigame | Vanilla B42 fishing silently requires a hook on the rod (`attractFish` coeff 0 without one) + abundance/weather/shore gates + an active minigame — "stood there, nothing bit". Custom action mirrors Mining: reliable, grounded, trains by doing. User's call. |
+| 2026-09-06 | Fishing bait **optional** (flat bite-chance bonus, consumed per bite), from vanilla lure items; caught fish from a **custom level-gated species list** reusing real B42 fish items | User's call — no dead-end "out of bait" state; custom list keeps control of progression while fish icons/models/cooking come free. Worms-from-foraging is a separate slice (FRG-2). |

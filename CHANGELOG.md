@@ -19,6 +19,37 @@ project uses SemVer and is in `0.x` (anything may change).
   game is not actually paused) whenever it's open.
 
 ### Added
+- **Fishing — FISH-2** (custom fishing, replaces the vanilla minigame in
+  practice): right-click on or beside water with a fishing rod in your
+  inventory → **Fish Here** → `ISPZRPGFishAction` (`PZRPG_48`, shared) +
+  `PZRPG_44_FishingContext.lua` (client). Rod auto-equips; the player walks to
+  the water's edge first if out of reach. The action runs **3 cast cycles per
+  queue then re-queues itself**, so you fish continuously until you walk off
+  (`stopOnWalk`/`stopOnRun`) or run your endurance out; each cycle resolves on a
+  job-delta threshold (like the Mining swing). Per cycle: roll a **bite**
+  (`0.34→0.82` over 1–100, `+0.22` while any vanilla lure item is in your
+  inventory), then on a bite roll **fish vs. junk/miss** (`0.55→0.93`). A fish
+  is a weighted, **level-gated pick from a custom species list** of real B42
+  fish items (Bluegill/Sunfish early → Bass/Walleye mid → Catfish/Musky/Gar
+  late — bigger fish = higher level, which is this slice's "size" progression).
+  Then a **landing roll** decides if you actually bring it in —
+  `fishingLandChance` climbs `0.65→0.94` over 1–100 and is dropped for
+  high-`minLvl` species (a maxed-level Alligator Gar still slips ~1 in 3);
+  a lost fish (or a bait-stealing nibble) prints a random speech line —
+  *"Darn, it got away!"*, *"Lost it!"*, *"The line went slack."*,
+  *"That one was a fighter."*, … (`TUNING.LOSS_LINES`). A landed fish goes
+  straight to your inventory (vanilla `OnCreate=Fishing.onCreateFish` still
+  shapes its size + name). Bait is **optional** — one unit is consumed per
+  bite. XP: `1` per empty cycle / bait-steal, `3` for a lost fish, `4` for
+  junk, `10` for a landed fish.
+  Still `mirrorVanilla = { Fishing = 1.0 }` so the vanilla minigame trains it
+  too; also trickles vanilla Fitness (`0.04`). Tuning at `PZRPG.tuning.fishing`
+  (species list, curves, junk table, bait fallback set). Why vanilla felt
+  broken: B42 fishing needs a **hook** attached to the rod or `attractFish()`'s
+  coefficient is 0 and nothing can ever bite, on top of fish-abundance /
+  weather / shore-distance gates and an active cast-and-reel minigame.
+  Follow-ups: **FISH-3** size-within-species scaling + a real fishing
+  animation; **FRG-2** dig worms while foraging for bait.
 - **Constitution — CONST-EFFECT-2** (resilience): the injury-side counterpart to
   Defense's damage reduction. Two transient per-`OnPlayerUpdate` nudges, nothing
   persistent written: (1) **bleeding resolves faster** — each tick shave
