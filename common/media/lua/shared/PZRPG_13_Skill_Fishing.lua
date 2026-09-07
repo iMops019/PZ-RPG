@@ -1,5 +1,5 @@
 --[[
-    PZ RPG  --  Fishing   (FISH-2: custom fishing action)
+    PZ RPG  --  Fishing   (FISH-2: custom fishing action; FISH-3: size scaling)
 
     Vanilla B42 fishing is a real-time cast/reel minigame with a silent hard
     requirement -- a hook attached to the rod, or NOTHING ever bites -- plus
@@ -7,17 +7,23 @@
     grounded world action, the same shape as Mining:
 
       right-click on or beside water with a fishing rod  ->  "Fish Here"
-        -> ISPZRPGFishAction (PZRPG_48): a few cast cycles per action, then it
+        -> ISPZRPGFishAction (PZRPG_48): one cast+wait per progress bar, then it
            re-queues itself so you keep fishing until you walk off (stopOnWalk)
-           or run your endurance out. Each cycle rolls a bite (level- and
-           bait-scaled); a bite lands a fish (custom species list, level-gated)
-           into your inventory -- IF you then win the landing roll (level- and
-           species-scaled; big fish slip more) -- or junk, or "it got away"
-           with a random "Darn, it got away!" line. XP per cycle, more per fish.
+           or run your endurance out. Each cast rolls a bite (level- and
+           bait-scaled) when the bar completes; a bite lands a fish (custom
+           species list, level-gated) into your inventory -- IF you then win the
+           landing roll (level- and species-scaled; big fish slip more) -- or
+           junk, or "it got away" with a random line. XP per cast, more per fish.
+
+    FISH-3: a landed fish is re-sized for your level -- PZRPG.sizeFishForLevel
+    re-rolls its small/medium/big bucket (fishingSizeMix: mostly tiddlers at
+    L1, mostly slabs by L100) using vanilla's own FishConfig, rescales the
+    item's weight + nutrition + name, and at high level a Big fish can stretch
+    into a "Legendary" trophy.
 
     Level effect (DESIGN.md sec 4): bite rate climbs, better/bigger species
-    unlock, less junk. All numbers in PZRPG.tuning.fishing -- live-tunable from
-    the -debug console.
+    unlock, fish run bigger, less junk. All numbers in PZRPG.tuning.fishing --
+    live-tunable from the -debug console.
 
     Bait is OPTIONAL. Any vanilla lure item (worm, cricket, leech, minnow, ...)
     anywhere in your inventory adds a flat bonus to the bite chance; one unit is
@@ -37,8 +43,7 @@ local TUNING = PZRPG.tuning.fishing or {
     XP_LOST   = 3,    -- hooked a fish but lost it before landing
     XP_CATCH  = 10,   -- landed a fish
 
-    CASTS_PER_ACTION = 3,     -- cast cycles resolved per queued action (then it re-queues)
-    CAST_TICKS_BASE  = 460,   -- action ticks for one cast cycle at level 1
+    CAST_TICKS_BASE  = 460,   -- action ticks for one cast+wait (the progress bar) at level 1
     CAST_TICKS_MIN   = 280,   -- ...at level 100 (higher level = quicker casts)
     CAST_TICKS_EXP   = 1.0,
 
@@ -57,6 +62,17 @@ local TUNING = PZRPG.tuning.fishing or {
     LAND_MAX   = 0.94,   -- ...level 100
     LAND_EXP   = 0.85,
     LAND_TROPHY_PENALTY = 0.35,  -- big/rare species (high minLvl) fight harder and slip more
+
+    -- FISH-3: size-within-species. How the small/medium/big mix of a landed
+    -- fish shifts with level. Small falls, Big rises; Medium is the remainder.
+    SIZE_SMALL_HI  = 0.90,   -- P(small) at level 1
+    SIZE_SMALL_LO  = 0.12,   -- ...at level 100
+    SIZE_SMALL_EXP = 0.90,
+    SIZE_BIG_LO    = 0.03,   -- P(big) at level 1
+    SIZE_BIG_HI    = 0.46,   -- ...at level 100
+    SIZE_BIG_EXP   = 1.35,
+    TROPHY_MIN_LVL = 72,     -- no trophy roll below this level
+    TROPHY_ODDS    = 22,     -- 1-in-N on a Big fish at/above TROPHY_MIN_LVL -> "Legendary"
 
     -- flavour said on the water's edge when one gets away (miss or lost fish)
     LOSS_LINES = {
@@ -87,9 +103,8 @@ local TUNING = PZRPG.tuning.fishing or {
 
     -- custom catch list: real B42 fish items (icons / models / cooking come
     -- free), PZ RPG's own level gates and pick weights. minLvl gates a species
-    -- in; weight is its relative commonness once unlocked. Bigger fish sit
-    -- behind higher levels -- that's the "size" progression for this slice;
-    -- size-within-species scaling is FISH-3.
+    -- in; weight is its relative commonness once unlocked. Bigger species sit
+    -- behind higher levels; size *within* a species scales too (FISH-3, below).
     SPECIES = {
         { id = "Base.BaitFish",        minLvl = 1,  weight = 14 },
         { id = "Base.Bluegill",        minLvl = 1,  weight = 22 },
@@ -217,6 +232,100 @@ function PZRPG.rollFishSpecies(level)
 end
 
 ---------------------------------------------------------------------------
+-- FISH-3: size within a species
+---------------------------------------------------------------------------
+
+--- Small / medium / big probabilities (sum ~1) for a landed fish at this level.
+function PZRPG.fishingSizeMix(level)
+    local f = frac(level)
+    local small = TUNING.SIZE_SMALL_HI
+        - (TUNING.SIZE_SMALL_HI - TUNING.SIZE_SMALL_LO) * (f ^ TUNING.SIZE_SMALL_EXP)
+    local big = TUNING.SIZE_BIG_LO
+        + (TUNING.SIZE_BIG_HI - TUNING.SIZE_BIG_LO) * (f ^ TUNING.SIZE_BIG_EXP)
+    small = math.max(0.02, math.min(0.96, small))
+    big   = math.max(0.0,  math.min(0.96, big))
+    if small + big > 0.98 then
+        local k = 0.98 / (small + big)
+        small, big = small * k, big * k
+    end
+    return small, math.max(0.02, 1 - small - big), big
+end
+
+local function fishConfigFor(fullType)
+    if not (Fishing and type(Fishing.fishes) == "table") then return nil end
+    for _, c in ipairs(Fishing.fishes) do
+        if c.itemType == fullType then return c end
+    end
+    return nil
+end
+
+--- Re-roll a just-caught fish's size for the player's Fishing level, working
+--- from the values vanilla's OnCreate (Fishing.onCreateFish) already put on the
+--- item -- so weight + nutrition scale proportionally with no compounding.
+--- Silent no-op if the species has no vanilla FishConfig.
+function PZRPG.sizeFishForLevel(item, level)
+    if not item then return end
+    local id  = item:getFullType()
+    local cfg = fishConfigFor(id)
+    if not cfg or type(cfg.getFishSizeData) ~= "function" then return end
+
+    local ok, err = pcall(function()
+        local s, m, b = PZRPG.fishingSizeMix(level)
+        local sd = cfg:getFishSizeData(s * 100, m * 100, b * 100)
+        if not sd then return end
+
+        local sizeName = sd.size
+
+        -- trophy tail: a Big fish at high level can stretch toward trophy length
+        if sd.size == "Big" and level >= (TUNING.TROPHY_MIN_LVL or 72)
+           and cfg.trophyLength and cfg.trophyLength > sd.length
+           and ZombRand(TUNING.TROPHY_ODDS or 22) == 0 then
+            local extra = ZombRand(cfg.trophyLength - sd.length) + 1
+            sd.weight = sd.weight * (1 + extra / math.max(1, sd.length))
+            sd.length = sd.length + extra
+            sizeName  = "Legendary"
+        end
+
+        -- proportional rescale from the current (vanilla-rolled) values
+        local oldW = item:getActualWeight()
+        local newW = sd.weight * 2.2                    -- vanilla stores lb = kg * 2.2
+        local ratio = (oldW and oldW > 0) and (newW / oldW) or 1
+
+        pcall(function()
+            item:setCalories(item:getCalories() * ratio)
+            item:setProteins(item:getProteins() * ratio)
+            item:setLipids(item:getLipids() * ratio)
+            item:setCarbohydrates(item:getCarbohydrates() * ratio)
+        end)
+
+        item:setActualWeight(newW)
+        item:setCustomWeight(true)
+        item:setWorldScale(sd.length / 100.0)
+
+        local hunger = sd.weight / (cfg.weightFactor or 2)
+        if id ~= "Base.BaitFish" and hunger < 0.05 then hunger = 0.05 end
+        pcall(function()
+            item:setBaseHunger(-hunger)
+            item:setHungChange(-hunger)
+        end)
+
+        local parts   = luautils.split(id, ".")
+        local shortId = parts[2] or parts[1] or id
+        local suffix  = (sd.size == "Big" and "_Big")
+            or (sd.size == "Medium" and "_Medium") or "_Little"
+        item:getModData().fishing_FishSize     = sd.length
+        item:getModData().fishing_FishHandItem = shortId .. "_Hand" .. suffix
+
+        if cfg.isHaveDifferentSizes ~= false then
+            local disp = shortId
+            pcall(function() disp = getScriptManager():FindItem(id):getDisplayName() end)
+            item:setName(getText("IGUI_Fish_" .. sizeName) .. " " .. disp .. " - " .. sd.length .. "cm")
+        end
+    end)
+    if not ok then PZRPG.log("fishing: sizeFishForLevel failed (" .. tostring(id) .. ") -- " .. tostring(err)) end
+end
+
+---------------------------------------------------------------------------
 -- one cast cycle (called by ISPZRPGFishAction)
 ---------------------------------------------------------------------------
 
@@ -251,7 +360,8 @@ function PZRPG.resolveFishingCast(player)
         end
 
         local item
-        pcall(function() item = player:getInventory():AddItem(id) end)  -- OnCreate=Fishing.onCreateFish shapes size + name
+        pcall(function() item = player:getInventory():AddItem(id) end)  -- OnCreate=Fishing.onCreateFish gives a base-shaped fish
+        pcall(function() if item then PZRPG.sizeFishForLevel(item, level) end end)  -- FISH-3: re-size for level
         PZRPG.addXp(player, "fishing", TUNING.XP_CATCH)
         pcall(function()
             if HaloTextHelper and HaloTextHelper.addTextWithArrow and item then
@@ -289,7 +399,8 @@ PZRPG.registerSkill{
     describe      = function(level)
         local dry  = math.floor(PZRPG.fishingBiteChance(level, false) * 100 + 0.5)
         local bait = math.floor(PZRPG.fishingBiteChance(level, true)  * 100 + 0.5)
-        return ("Fish at any water's edge with a rod. Bite chance %d%% (%d%% with bait).")
-            :format(dry, bait)
+        local _, _, big = PZRPG.fishingSizeMix(level)
+        return ("Fish at any water's edge with a rod. Bite %d%% (%d%% baited); %d%% of catches run big.")
+            :format(dry, bait, math.floor(big * 100 + 0.5))
     end,
 }

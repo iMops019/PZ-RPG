@@ -1,17 +1,21 @@
 --[[
     PZ RPG  --  ISPZRPGFishAction  (FISH-2)
 
-    A normal timed action against a water square. Duration is
-    CASTS_PER_ACTION cast cycles, each cycle's length scaling down with Fishing
-    level. As the job delta crosses each 1/N mark we resolve one cast --
-    PZRPG.resolveFishingCast (PZRPG_13) -> bite roll, XP, maybe a fish -- so a
-    "+N Fishing" bubble ticks up as you fish. complete() resolves any leftover
-    casts and, if still valid, re-queues a fresh action so you keep fishing
-    until you walk away or bottom out your endurance.
+    One cast cycle per queued action: the progress bar is you casting and
+    waiting, and the outcome is resolved once, at the end -- PZRPG.resolveFishingCast
+    (PZRPG_13) -> bite roll, XP, maybe a fish (or a "lost it" line). On a clean
+    finish it re-queues a fresh action so you keep fishing until you walk away
+    (stopOnWalk / stopOnRun) or bottom out your endurance.
+
+    Animation: equipping a rod auto-spawns vanilla's own FishingManager
+    (OnEquipPrimary), which drives the cast / idle fishing pose whenever you're
+    holding a rod facing water -- which is exactly what this action sets up. We
+    leave that alone and just run "Loot" as the base action anim under it.
+    (FISH-4 tried to drive FishingStage ourselves + suppress vanilla's manager;
+    it killed the animation and was reverted -- vanilla's layer already does it.)
 
     isValid() re-checks every tick: a working fishing rod still HELD, the water
-    square still water and in reach, endurance not empty. stopOnWalk / stopOnRun
-    end it cleanly (and skip the re-queue -- that only fires on a real finish).
+    square still water and in reach, endurance not empty.
 
     Load order: shared _48_. Referenced by the client context menu (PZRPG_44).
 ]]
@@ -45,27 +49,12 @@ function ISPZRPGFishAction:waitToStart()
 end
 
 function ISPZRPGFishAction:start()
-    self.casts = 0
-    self:setActionAnim("Loot")   -- TODO(FISH-3): a real fishing cast/idle anim
-    pcall(function() self.character:playSound("LureHitWater") end)
-end
-
-local function resolveOne(self)
-    self.casts = (self.casts or 0) + 1
-    local result = "nibble"
-    pcall(function() result = PZRPG.resolveFishingCast(self.character) or "nibble" end)
-    pcall(function() self.character:getEmitter():playSound("LureHitWater") end)
-    addSound(self.character, self.character:getX(), self.character:getY(), self.character:getZ(), 4, 3)
+    self:setActionAnim("Loot")
+    pcall(function() self.character:playSound("CastFishingLine") end)
 end
 
 function ISPZRPGFishAction:update()
     self.character:faceLocationF(self.waterX + 0.5, self.waterY + 0.5)
-
-    local need    = self.castsNeeded or 3
-    local crossed = math.floor(self:getJobDelta() * need)
-    while (self.casts or 0) < crossed do
-        resolveOne(self)
-    end
 end
 
 function ISPZRPGFishAction:stop()
@@ -77,10 +66,9 @@ function ISPZRPGFishAction:perform()
 end
 
 function ISPZRPGFishAction:complete()
-    local need = self.castsNeeded or 3
-    while (self.casts or 0) < need do
-        resolveOne(self)
-    end
+    pcall(function() PZRPG.resolveFishingCast(self.character) end)
+    pcall(function() self.character:getEmitter():playSound("LureHitWater") end)
+    addSound(self.character, self.character:getX(), self.character:getY(), self.character:getZ(), 4, 3)
 
     -- keep fishing: re-queue only on a clean finish (a walk-off calls stop())
     if ISTimedActionQueue and self:isValid() then
@@ -92,8 +80,7 @@ end
 function ISPZRPGFishAction:getDuration()
     local lvl = 1
     pcall(function() lvl = PZRPG.getLevel(self.character, "fishing") end)
-    local t = tuning()
-    return (t.CASTS_PER_ACTION or 3) * PZRPG.fishingCastTicks(lvl)
+    return PZRPG.fishingCastTicks(lvl)
 end
 
 function ISPZRPGFishAction:new(character, waterSq)
@@ -102,8 +89,6 @@ function ISPZRPGFishAction:new(character, waterSq)
     o.waterSq          = waterSq
     o.waterX           = waterSq:getX()
     o.waterY           = waterSq:getY()
-    o.castsNeeded      = (tuning().CASTS_PER_ACTION or 3)
-    o.casts            = 0
     o.maxTime          = o:getDuration()
     o.caloriesModifier = 2
     o.forceProgressBar = true

@@ -19,6 +19,29 @@ project uses SemVer and is in `0.x` (anything may change).
   game is not actually paused) whenever it's open.
 
 ### Added
+- **Fishing — FISH-4 (reverted) + cast timing fix**: FISH-4 tried to drive the
+  `FishingStage` anim variable from the action and suppress vanilla's
+  auto-spawned `FishingManager` — in-game that *killed* the animation (the
+  character just stood still). Reverted: we leave vanilla's manager alone, and
+  it drives the cast/idle fishing pose for free whenever you hold a rod facing
+  water (which the action sets up). `setActionAnim("Loot")` stays as the base.
+  Kept from the pass: **one cast per progress bar, resolved at the end** (was 3
+  casts per bar resolved on job-delta thresholds — so a "lost it!" or a catch
+  fired at 33 % of the bar, which read as broken). `CASTS_PER_ACTION` tuning
+  removed; the action still re-queues itself for continuous fishing.
+- **Fishing — FISH-3** (size within a species): a landed fish is re-sized for
+  your Fishing level. `PZRPG.fishingSizeMix(level)` shifts the small/medium/big
+  odds — `~90/7/3` at L1, `~50/34/16` at L50, `~12/43/45` at L100 — and
+  `PZRPG.sizeFishForLevel` feeds those into vanilla's own `FishConfig` to pick
+  a length + weight, then rescales the item's weight, calories/protein/lipid/
+  carbs and hunger *proportionally from what vanilla's `OnCreate` already set*
+  (no compounding) and renames it `"<Size> <Species> - <N>cm"`. At level ≥ 72 a
+  Big fish has a `1-in-22` shot at stretching toward the species' trophy length
+  and becoming a **Legendary**. Silent no-op for any species without a vanilla
+  `FishConfig`. Tuning: `SIZE_SMALL_*` / `SIZE_BIG_*` / `TROPHY_MIN_LVL` /
+  `TROPHY_ODDS` in `PZRPG.tuning.fishing`. Sheet blurb now shows the "runs big"
+  percentage. (Real fishing cast/idle animation is still FISH-4 — the anim
+  system has no fishing action node, only `changeBait`.)
 - **Fishing — FISH-2** (custom fishing, replaces the vanilla minigame in
   practice): right-click on or beside water with a fishing rod in your
   inventory → **Fish Here** → `ISPZRPGFishAction` (`PZRPG_48`, shared) +

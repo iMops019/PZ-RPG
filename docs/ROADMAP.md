@@ -68,8 +68,13 @@ commitment:
 - Mining speed / ore chance / pick wear (after Phase 4 content).
 - Foraging rare-find · ~~Fishing bite rate~~ **FISH-2 ✅** (custom
   `ISPZRPGFishAction` — right-click water with a rod; bite rate + species gate +
-  bait bonus scale with level; replaces the vanilla minigame). Later: **FISH-3**
-  size-within-species + real cast animation. · Cooking nutrition & waste ·
+  bait bonus scale with level; replaces the vanilla minigame) · **FISH-3 ✅**
+  size-within-species (level shifts the small/medium/big mix; trophy tail at
+  L72+) · **FISH-4** animation — tried driving `FishingStage` + suppressing
+  vanilla's `FishingManager`; it killed the anim in-game, reverted. Vanilla's
+  manager animates the cast/idle pose for free while a rod is held facing
+  water. Kept the "one cast per progress bar" timing fix. · Cooking nutrition
+  & waste ·
   Firemaking light speed & fuel efficiency · Smithing recipe-tier unlocks ·
   Crafting quality · Dexterity stealth radius & noise.
 - **Combat effects, one slice each** (careful — `DESIGN.md` §4/§5). Defensive
