@@ -89,7 +89,9 @@ local function reconcileEndurance(weapon, level)
 
     local current = weapon:getEnduranceMod()
     local base    = current / applied
-    local factor  = enduranceFactor(level)
+    -- `vigor` buff (COOK-4b meals) stacks multiplicatively on the level factor
+    local vigor   = (PZRPG.buffs and PZRPG.buffs.get("vigor")) or 0
+    local factor  = math.max(0.03, enduranceFactor(level) * (1 - vigor))
     local target  = base * factor
 
     if math.abs(target - current) > 0.0001 then

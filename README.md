@@ -36,6 +36,12 @@ Repo: <https://github.com/iMops019/PZ-RPG>
   XP (`mirrorVanilla`, e.g. Cooking ← vanilla Cooking).
 - `PZRPG.wrapAction(cls, method, fn)` — reload-safe hook onto vanilla timed
   actions.
+- **Timed buff engine** (`PZRPG_09_Buffs.lua`) — `PZRPG.buffs.apply / .get /
+  .clear / .remaining`; source-tracked, self-expiring "Well Fed"-style buffs
+  (`mending`, `scholar`, `infectionResist`, `toughness`, `strong`, …). First
+  used by Cooking's Field Recipes.
+- **Sandbox options** — `common/media/sandbox-options.txt`; first knob is
+  `PZRPG.MaximumFireFuelHours` (default 12).
 
 **Character Sheet** (press **K**, or Options → Key Bindings) — tabbed window:
 
@@ -44,18 +50,18 @@ Repo: <https://github.com/iMops019/PZ-RPG>
   "fill out your sheet" screen; **Begin Survival** starts the run.
 - **Skills** — the roster by category, level + XP bar + blurb.
 
-**Skills wired** (XP only unless noted — level effects come slice by slice)
+**Skills** (every skill earns XP from real play; level effects land slice by slice)
 
-| | Trains from |
-|---|---|
-| Woodcutting | each axe swing at a tree |
-| Cooking / Fishing / Foraging / Smithing / Crafting / Dexterity | mirrored from the matching vanilla perk |
-| Firemaking | lighting & fuelling campfires |
-| Attack / Strength | landing melee hits |
-| Defense / Constitution | taking a hit and surviving |
-| **Constitution** | *also:* a chance to shrug off infection from a bite/scratch (L100 ≈ 55% scratch / 20% bite) |
-
-Not yet wired: **Mining** (needs new content — boulders, ore). See the roadmap.
+| Skill | Trains from | Level effect so far |
+|---|---|---|
+| Woodcutting | each axe swing at a tree | faster chop |
+| Mining | right-click a world boulder with a pickaxe → Stone + Iron Ore | — (pick wear + coal: MINE-2) |
+| Fishing | right-click water with a rod (custom action) | bite rate, species & size gate |
+| Foraging | mirrored vanilla perk | — (none planned) |
+| Firemaking | lighting / fuelling a campfire, + a trickle while you sit by a lit fire | ignition odds ↑ with level; 12h fuel cap; fires burn slower |
+| Cooking | mirrored vanilla perk | a cooked meal heals (meal size × level); **Field Recipes** → "Prepare" a discovered dish for a timed buff |
+| Attack / Strength | landing melee hits | −endurance per swing / +melee damage |
+| Defense / Constitution | taking a hit and surviving | block + damage reduction / infection resist + faster bleed-stop |
 
 ## Project layout
 
@@ -65,13 +71,17 @@ PZ RPG/
     mod.info                    metadata (id = PZRPG) — CRLF, required for B42 discovery
     poster.png  icon.png        (todo)
     media/
+      scripts/                  pzrpg_food.txt — Field Recipe dish items
+      sandbox-options.txt       player-facing knobs (PZRPG.MaximumFireFuelHours)
       lua/
-        shared/                 PZRPG_00-08 Core (curve, save, registry, xp,
-                                exertion, mirror, wrapAction, xp-drops) +
-                                PZRPG_10-40 one file per skill
-        client/                 PZRPG_50-56 character sheet, PZRPG_60 keybind
+        shared/                 PZRPG_00-09 Core (curve, save, registry, xp,
+                                exertion, mirror, wrapAction, xp-drops, buffs) +
+                                PZRPG_10-40 one file per skill, + sibling files
+                                (PZRPG_25/26 cooking recipes & Prepare action,
+                                PZRPG_46 mine action, PZRPG_48 fish action)
+        client/                 PZRPG_44-49 context menus & overlays,
+                                PZRPG_50-56 character sheet, PZRPG_60 keybind
         server/                 authoritative XP / save writes (SP runs this too)
-      sandbox-options.txt       player-facing knobs (todo)
   docs/
   deploy.ps1                    copy common/ into the game + enable the mod
   dev-deploy.bat                double-click wrapper

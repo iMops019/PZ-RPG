@@ -122,10 +122,12 @@ Concrete example, **Woodcutting**:
   - Level 50: noticeably quicker — you feel it.
   - Level 100: clearly faster than a fresh character, but **not** trivial — still
     a real action, still costs endurance, no infinite logs.
-- Yield (logs / twigs / branches) may get a **small** bonus roll at higher levels
-  — a little extra, not a jackpot.
+- **No yield bonus.** A level never rolls extra logs / ore / plants / fish
+  fillets. Output quantity stays vanilla for every skill (decided 2026-09-06).
+  If a specific skill ever wants one it's a deliberate, separate call — not the
+  default.
 - Target ceiling: a level-100 chopper is maybe ~1.5–2× a level-1 chopper's
-  throughput, not 10×. _(numbers to be tuned in-game)_
+  throughput (from **speed**), not 10×. _(numbers to be tuned in-game)_
 
 Every skill follows this shape: **pick one or two real in-game quantities, scale
 them on a shallow curve, cap the top end so it stays grounded.**
@@ -147,9 +149,9 @@ Grouped roughly. Order of implementation is set in the ROADMAP, not here.
 
 | Skill | Trains by | Level effect _(sketch)_ | Outputs |
 | --- | --- | --- | --- |
-| **Woodcutting** | Chopping trees | Faster chop, small yield bonus | Logs, twigs, branches → Carpentry / Firemaking / Smithing (charcoal) |
-| **Mining** | Mining boulders with a pickaxe | Faster mine, better ore chance, less pick wear | Stone, **Iron Ore**, (later: coal, other ores) → Smithing |
-| **Foraging / Herbalism** _(later)_ | Foraging (vanilla zones) | Rare-find chance, more per pick | Plants → Cooking / medicine |
+| **Woodcutting** | Chopping trees | Faster chop (WC-2 ✅). No yield bonus. | Logs, twigs, branches → Carpentry / Firemaking / Smithing (charcoal) |
+| **Mining** | Mining boulders with a pickaxe | **Less pick wear + a chance of coal** (MINE-2). No mine-speed, no yield bonus. | Stone, **Iron Ore**, coal → Smithing |
+| **Foraging / Herbalism** | Foraging (vanilla zones) | **None planned** — mirror XP only (user's call 2026-09-06). | Plants → Cooking / medicine |
 | **Fishing** | Right-click water with a rod → `ISPZRPGFishAction` (custom action, not the vanilla minigame — FISH-2) | Bite rate ↑, better/bigger species unlock, fish run bigger within a species (FISH-3), less junk; bait optional (flat bite bonus) | Fish (custom level-gated list of real B42 fish items) → Cooking |
 
 ### Production
@@ -190,25 +192,26 @@ No vanilla perk maps to it. The **physical system is the vanilla 3-stone campfir
 **XP model — reward *keeping* a fire, not spamming lights.** Lighting ≈ 40,
 feeding fuel ≈ 10, **plus a passive trickle every 10 min while a lit campfire is
 within 2 tiles of you** (a day at camp ≈ a few lightings' worth). A campfire
-mouse-over tooltip shows "Stand near to train Firemaking", time left, heat
-radius.
+hover tooltip ("Stand near to train Firemaking", time left, heat radius) is a
+follow-up — vanilla only has a *click*-opened info window, no world-object hover
+panel.
 
-Slices: **FIRE-2** cap slider + flat efficiency + XP rebalance · **FIRE-3**
-ignition scaling + tinder bonus · **FIRE-4** passive tending XP + hover tooltip ·
-**FIRE-5** charcoal.
+Slices: **FIRE-2 ✅** cap slider + flat efficiency + XP rebalance · **FIRE-3 ✅**
+ignition scaling + tinder bonus · **FIRE-4 ✅** passive tending XP ·
+**FIRE-4.1** campfire hover tooltip · **FIRE-5** charcoal.
 
 ### Cooking  (decided 2026-09-06)
 
 Still vanilla-mirrored (`mirrorVanilla = { Cooking = 1.0 }`). Two layers:
 
-- **Basic cooked food scales with level.** A tuning table of staple cooked foods
-  by *tier* (Cooked Trout = tier 1 — "every kid learns to cook a fish"). Level
-  raises what the food restores on a shallow curve — e.g. Cooked Trout ≈ 15 HP /
-  10 hunger at L1 → ≈ 30 HP / 20 hunger by L30, flattening after. _(Mechanic to
-  confirm when built: a brief HP-regen window on eating a properly-cooked staple,
-  scaled by tier × level; vanilla nutrition left alone. Numbers all tunable.)_
-  Normal food (deer venison, chicken, …) keeps its normal vanilla value and still
-  grants Cooking XP.
+- **A cooked meal heals** (COOK-3 ✅). Finishing a **cooked, non-burnt,
+  non-rotten** food starts a short general-health regen (~45 game-min). Total HP
+  scales with the **meal's size** (its base hunger value — a steak heals more
+  than a fillet, no manual tier list) × a **shallow Cooking-level curve**:
+  ≈ novice at L1, ~2× by L30, ~2.5× at L100. Vanilla hunger / nutrition is left
+  alone; canned / raw / burnt food heals nothing. Normal food (venison, chicken,
+  …) keeps its vanilla value and still grants Cooking XP. Knobs in
+  `PZRPG.tuning.cooking`.
 - **Field Recipes** _(the marquee feature, later)_ — special recipes that produce
   a meal granting a **fixed timed buff** (e.g. *Bountiful Trout Platter* = raw
   trout + berries + onion + potatoes → 2h reduced infection chance). Each recipe
@@ -225,15 +228,53 @@ Still vanilla-mirrored (`mirrorVanilla = { Cooking = 1.0 }`). Two layers:
   - **Starter set:** 3–4 basic buff recipes (fish, venison, chicken; small
     buffs) **auto-known at character creation** — nothing in inventory. The
     strong recipes are world loot.
+  - **Cooking method:** a custom **"Prepare &lt;dish&gt;"** timed action
+    (right-click the ingredients / near a heat source), not the B42 crafting UI
+    — full control, no dependency on B42's crafting internals. Gated on knowing
+    the recipe + `minLevel`.
 
-- **XP:** mirror + a bonus weighted toward real cooking (raw ingredients /
-  multi-item meals, not reheating a can).
+#### The buff engine  (`PZRPG_09_Buffs.lua` — COOK-4a)
+
+A general timed-buff layer (not Cooking-specific — anything could grant one
+later). `PZRPG.buffs.apply(player, list, durationHrs, source)` stores active
+buffs for the local player; `PZRPG.buffs.get(type)` returns the summed
+magnitude. Buffs **refresh** per source (eating the dish again resets its
+timer), **stack** across different sources, and all expire on their own clock
+(survives speed-up, like COOK-3). One "Well Fed" moodle-style indicator while
+any is active. Every buff type is one of the two DESIGN-§5 mechanisms — a
+per-`OnPlayerUpdate` nudge, or a held-weapon stat top-up reconciled against the
+engine's own modData key (so it never fights the skills' own reconcile).
+
+| Buff | Effect while active | Built on |
+| --- | --- | --- |
+| `infectionResist` | +mag flat chance to negate a bite/scratch infection as it transmits | CONST-EFFECT-1 watcher |
+| `toughness` | −mag× general-health damage taken | DEF-EFFECT-1 health-drop refund |
+| `guarded` | +mag block chance | DEF-EFFECT-1 roll |
+| `vigor` | work / swings cost mag× less endurance | Exertion / ATK-EFFECT-1 refund |
+| `strong` | +mag× melee damage | STR-EFFECT-1 weapon top-up |
+| `mending` | +mag general-health / tick (gentle) | CONST-EFFECT-2 regen |
+| `scholar` | +mag× PZ RPG XP (all skills, or a named group) | multiplier inside `PZRPG.addXp` |
+| `steady` | panic + stress fall faster / held low | `getStats()` nudge |
+| `rested` | fatigue drains slower | `getStats()` nudge |
+| `packmule` _(planned)_ | +mag kg carry | `setMaxWeightDelta` — needs the same API work as STR-EFFECT-2 |
+| `warm` _(planned)_ | resist cold / warm up faster | `BodyDamage` thermal nudge — needs API check |
+
+A recipe declares one or two: `buffs = { {t="infectionResist", mag=0.25},
+{t="strong", mag=0.12} }`, plus `durationHrs`. Magnitudes are **fixed per
+recipe** (level gates *cooking* it, not the payload — decided 2026-09-06).
+
+- **XP** (COOK-2 ✅): the vanilla Cooking mirror is the whole mechanism — it
+  already scales with recipe involvement, so it *is* the "bonus for real
+  cooking". No separate hook (B42 exposes no clean cook/craft-complete Lua
+  event). Retune the mirror weight if Cooking levels too fast / slow in play.
 - **Food-sickness risk is left alone** — bad ingredients stay bad; Cooking level
   doesn't touch food poisoning.
 
-Slices: **COOK-2** mirror + bonus XP · **COOK-3** staple-food level scaling +
-tier table · **COOK-4** Field Recipe items + buffs + cook action + starter set ·
-**COOK-5** recipe study action + Field Cookbook UI + world loot.
+Slices: **COOK-2 ✅** mirror is the XP · **COOK-3 ✅** cooked meals heal
+(size × level) · **COOK-4a ✅** the buff engine (`PZRPG_09_Buffs.lua`) ·
+**COOK-4a.2 ✅** buffs folded into the combat effects · **COOK-4b ✅**
+"Prepare Field Recipe" action + menu + 3 starter recipes (auto-known) ·
+**COOK-5** recipe study action + Field Cookbook UI + world-loot recipe cards.
 
 ### Combat
 

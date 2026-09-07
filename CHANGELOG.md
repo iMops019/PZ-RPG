@@ -19,6 +19,72 @@ project uses SemVer and is in `0.x` (anything may change).
   game is not actually paused) whenever it's open.
 
 ### Added
+- **Cooking — COOK-4b** (Field Recipes, end to end): right-click a heat source
+  (lit campfire / activated stove-oven / lit BBQ) → **Prepare Field Recipe** ▸
+  submenu of every recipe you know; craftable ones are clickable, the rest grey
+  with the reason. Selecting runs `ISPZRPGPrepareDishAction` (`PZRPG_26`,
+  ~cookMinutes, re-checks ingredients + heat each tick), which consumes the
+  ingredients and drops the dish (stamped `getModData().PZRPG_recipe`), +60
+  Cooking XP. Eating a stamped dish (via the COOK-3 `ISEatFoodAction` wrap)
+  applies its **fixed** heal + its **timed buff** through the COOK-4a engine and
+  *skips* the size-based heal. `PZRPG_25_CookingRecipes.lua` holds the catalogue
+  + the known-recipe store (`getData().cooking.known`, additive — no
+  `SAVE_VERSION` bump) + `isKnown` / `learn` / `knownList` / `missingFor` /
+  `prepare`. **3 starter recipes** (Hearty Fish Stew, Venison Pot Roast, Roast
+  Chicken Dinner) flagged `starter` → auto-learned on `OnCreatePlayer` /
+  `OnGameStart` (existing saves get them too). Dish items in
+  `common/media/scripts/pzrpg_food.txt` — borrowed vanilla icons/models, no art.
+  World-loot recipe *cards* + the study action + cookbook UI are COOK-5.
+- **Cooking — COOK-4a.2** (buff → skill-effect wiring): the `strong` /
+  `toughness` / `guarded` / `vigor` buff magnitudes are now folded into the
+  matching combat effects — one line each in `PZRPG_30` (Attack: `vigor` stacks
+  multiplicatively on the endurance factor, floor 0.03), `PZRPG_31` (Strength:
+  `strong` adds flat to the damage factor), `PZRPG_32` (Defense: `toughness` →
+  mitigation, `guarded` → block chance, both capped 0.90). Mechanism isn't
+  duplicated — the buff just adds into the number the skill already computes.
+- **Cooking — COOK-4a** (the buff engine, `PZRPG_09_Buffs.lua`): a general,
+  source-tracked, self-expiring timed-buff layer for the local player —
+  `PZRPG.buffs.apply(player, list, durationHrs, source)` / `.get(t)` / `.list()`
+  / `.clear(src)` / `.remaining()` / `.dump()`. Re-applying a source replaces
+  its entry (eat the dish again = reset timer); different sources stack; all
+  expire on the world-age clock (survives speed-up). "Well Fed" halo on apply.
+  Effects wired in-file: **mending** (+mag general-health/tick while hurt),
+  **scholar** (`×(1+mag)` on PZ RPG XP — wraps `PZRPG.addXp`, idempotent),
+  **infectionResist** (per-part save as a bite/scratch infection transmits, same
+  idiom as CONST-EFFECT-1), **steady** (panic + stress decay faster). The
+  `strong` / `toughness` / `guarded` / `vigor` magnitudes are exposed by
+  `PZRPG.buffs.get` now; folding them into the matching skill-effect files is
+  COOK-4a.2. Not Cooking-specific — Field Recipe meals (COOK-4b) are just the
+  first caller. Knobs in `PZRPG.tuning.buffs`.
+- **Cooking — COOK-2 + COOK-3**:
+  - **COOK-2** — no code. The vanilla Cooking mirror (`mirrorVanilla = { Cooking
+    = 1.0 }`) already scales with recipe involvement (reheating a can barely
+    moves it; a stew does), so it *is* the "bonus for real cooking" — no
+    separate hook. B42's cook/craft completion has no clean Lua event anyway.
+  - **COOK-3** (level effect — "a cooked meal heals"): `PZRPG_23` wraps
+    `ISEatFoodAction:complete`; finishing a **cooked, non-burnt, non-rotten**
+    food starts a short general-health regen. Total HP = `min(26, 0.35 ·
+    |baseHunger|·100) · levelMult · fractionEaten`, where `levelMult` climbs
+    `1.0 → 2.5` over L1→L100 (`^0.45`, so ≈2× by L30 — the user's "15→30 HP"
+    target). Delivered over 45 game-minutes via an `OnPlayerUpdate` accumulator
+    (time-accurate, survives speed-up); eating again refreshes it. Canned / raw
+    / burnt food heals nothing. Knobs in `PZRPG.tuning.cooking`; sheet blurb
+    shows the current "% more per meal". Field Recipe buffs (COOK-4) will stack
+    on top.
+- **Firemaking — FIRE-4** (passive tending XP): `+3 Firemaking` per 10
+  game-minutes spent with a **lit** campfire within **2 tiles** (same floor) of
+  the local player — the reward loop is "keep a fire going at camp", not
+  "spam-light fires" (light/feed stay one-shot, cut in FIRE-2 to make room).
+  Runs off `OnPlayerUpdate` throttled by `getWorldAgeHours()` (the
+  `EveryTenMinutes` hook never fired), so it keeps pace when the clock is sped
+  up; the accumulator resets whenever no lit fire is near. Fire detection scans
+  the squares around the player and asks
+  `CCampfireSystem.instance:getLuaObjectOnSquare(sq)` per square — on the client
+  `getLuaObjectByIndex` returns bare modData (no x/y/z), so iterating the system
+  directly doesn't work; the per-square call is vanilla's `ISCampingInfoWindow`
+  path. `XP_TEND` / `TEND_INTERVAL_MIN` / `TEND_RADIUS` in
+  `PZRPG.tuning.firemaking`. Hover tooltip is its own slice (FIRE-4.1). Sheet
+  blurb notes "trains … while you sit by a lit fire".
 - **Firemaking — FIRE-3** (level → kindle ignition, and *only* that): `PZRPG_21`
   forks vanilla `ISLightFromKindle:updateKindling` (B42 42.20.4) and swaps its
   two flat `ZombRand(300)` bounds for level-driven ones —
@@ -307,6 +373,17 @@ project uses SemVer and is in `0.x` (anything may change).
   mod discovery can be confirmed. No systems yet.
 
 ### Decided
+- **No yield-bonus level effects, for any skill** (`DESIGN.md` §4, decisions
+  log) — a level scales speed / chance / quality, never *how much* you get
+  (logs, ore, plants, fish). Mining MINE-2 drops mine-speed too → **pick-wear
+  reduction + a chance of coal** only. Foraging gets **no level effect** (mirror
+  XP only). A per-skill yield bonus later is a deliberate exception.
+- **Cooking Field Recipes** (`DESIGN.md` §5) — cook via a custom **"Prepare
+  &lt;dish&gt;"** action (not B42's crafting UI); a **general buff engine**
+  (`PZRPG_09_Buffs.lua`, not Cooking-specific) with palette `infectionResist /
+  toughness / guarded / vigor / strong / mending / scholar / steady / rested`
+  (packmule / warm planned); recipe payload is **fixed**, level gates only
+  *cooking* it.
 - **Firemaking design locked** (`DESIGN.md` §5, `ROADMAP.md` Phase 3) — vanilla
   3-stone campfire, no new object. Four layers: PZ RPG sandbox fuel-cap slider
   (default 12h) overriding `getCampingFuelMax()`; a flat, *non*-level

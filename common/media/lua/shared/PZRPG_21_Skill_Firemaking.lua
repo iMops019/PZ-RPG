@@ -16,6 +16,13 @@
                                           flat, *non-level* efficiency rebalance,
                                           same spirit as PZRPG_05_Exertion)
 
+    FIRE-4: a passive Firemaking XP trickle (XP_TEND every TEND_INTERVAL_MIN
+    game-minutes) while a lit campfire is within TEND_RADIUS tiles of the local
+    player -- the reward loop is "keep a fire going at camp", not "spam-light
+    fires". Lighting and feeding stay one-shot (cut in FIRE-2 to make room).
+    Runs off OnPlayerUpdate throttled by world-age hours (EveryTenMinutes never
+    fired for us), so it keeps pace when the clock is sped up. Client-only.
+
     FIRE-3: Firemaking *level* scales the kindle (friction) ignition -- and only
     that. We fork ISLightFromKindle:updateKindling (B42 42.20.4) and swap its two
     flat ZombRand(300) bounds for level-driven ones: higher level catches sooner
@@ -36,6 +43,9 @@ PZRPG.tuning.firemaking = PZRPG.tuning.firemaking or {
     XP_LIGHT_SUCCESS = 40,    -- a campfire catches
     XP_LIGHT_ATTEMPT = 8,     -- kindling broke without catching
     XP_ADD_FUEL      = 10,    -- feeding an existing fire
+    XP_TEND          = 3,     -- FIRE-4: awarded per TEND_INTERVAL_MIN near a lit fire
+    TEND_INTERVAL_MIN = 10,   -- game-minutes between trickles
+    TEND_RADIUS      = 2,     -- tiles (chebyshev) from the player to that fire
 
     FUEL_MAX_HOURS = 12,      -- fallback if the sandbox option isn't readable
     BURN_RATE      = 0.75,    -- fuel-minutes burned per real minute per lit fire
@@ -83,7 +93,8 @@ PZRPG.registerSkill{
     describe = function(level)
         local faster = math.floor((1 - kindleCatchTries(level) / TUNING.KINDLE_CATCH_L1) * 100 + 0.5)
         return ("Lighting and tending fires. Friction fires catch ~%d%% faster than a novice's; "
-            .. "real tinder (twigs, paper) in your bag helps more. Trains on light / feed.")
+            .. "real tinder (twigs, paper) in your bag helps more. Trains on light / feed and "
+            .. "while you sit by a lit fire.")
             :format(faster)
     end,
 }
@@ -244,6 +255,60 @@ local function installKindle()
 end
 
 ---------------------------------------------------------------------------
+-- FIRE-4: passive XP while you're near a lit fire (rewards tending a camp
+-- fire, not spam-lighting). Driven off OnPlayerUpdate (the event the rest of
+-- the mod uses -- the EveryTenMinutes hook never fired), throttled by game
+-- time so it still works when the clock is sped up.
+---------------------------------------------------------------------------
+
+--- A lit campfire on or within TEND_RADIUS tiles of `player`? (Per-square via
+--- getLuaObjectOnSquare -- on the client getLuaObjectByIndex returns bare
+--- modData with no x/y/z, so iterating the system doesn't work; this is the
+--- path vanilla's ISCampingInfoWindow uses.)
+local function litFireNear(player)
+    if type(CCampfireSystem) ~= "table" or not CCampfireSystem.instance then return false end
+    local cell = getCell()
+    if not cell then return false end
+    local px, py, pz = math.floor(player:getX()), math.floor(player:getY()), math.floor(player:getZ())
+    local r = TUNING.TEND_RADIUS
+    for x = px - r, px + r do
+        for y = py - r, py + r do
+            local sq = cell:getGridSquare(x, y, pz)
+            local ok, cf = pcall(function()
+                return sq and CCampfireSystem.instance:getLuaObjectOnSquare(sq)
+            end)
+            if ok and cf and cf.isLit then return true end
+        end
+    end
+    return false
+end
+
+local tendPrevHrs   -- world-age hours at the last tick
+local tendAccumMin = 0
+
+local function onTendUpdate(player)
+    if not player or player ~= getSpecificPlayer(0) then return end
+    local gt = getGameTime()
+    if not gt then return end
+    local nowHrs = gt:getWorldAgeHours()
+    local prev = tendPrevHrs
+    tendPrevHrs = nowHrs
+    if not prev then return end
+    local dMin = (nowHrs - prev) * 60
+    if dMin <= 0 or dMin > 60 then return end   -- clock jump / load / paused
+
+    if not litFireNear(player) then
+        tendAccumMin = 0
+        return
+    end
+    tendAccumMin = tendAccumMin + dMin
+    if tendAccumMin >= (TUNING.TEND_INTERVAL_MIN or 10) then
+        tendAccumMin = 0
+        PZRPG.addXp(player, "firemaking", TUNING.XP_TEND)
+    end
+end
+
+---------------------------------------------------------------------------
 
 local function install()
     if ISLightFromKindle     then PZRPG.wrapAction(ISLightFromKindle,     "perform", onKindlePerform) end
@@ -264,3 +329,4 @@ end
 
 install()                                                       -- -debug reload / late-load
 PZRPG.hookEvent("OnGameBoot", "firemaking.wrap", installAndLog)  -- first boot (load order)
+PZRPG.hookEvent("OnPlayerUpdate", "firemaking.tend", onTendUpdate)  -- FIRE-4 passive trickle

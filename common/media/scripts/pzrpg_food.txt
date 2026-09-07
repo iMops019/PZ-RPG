@@ -1,0 +1,90 @@
+module PZRPG
+{
+    import
+    {
+        Base
+    }
+
+    /* PZ RPG Field Recipe dishes (COOK-4b). Borrow vanilla icons + models --
+       no new art. The buff + the fixed heal live in Lua (PZRPG_25); these
+       scripts only need to be edible, cooked, and reasonably nourishing.
+       Each is stamped with getModData().PZRPG_recipe when prepared. */
+
+    item HeartyFishStew
+    {
+        DisplayCategory      = Food,
+        DisplayName          = Hearty Fish Stew,
+        ItemType             = base:food,
+        Weight               = 1.0,
+        Icon                 = BowlFull,
+        EatType              = 2handbowl,
+        BadCold              = true,
+        BadInMicrowave       = true,
+        DangerousUncooked    = false,
+        IsCookable           = false,
+        FoodType             = Fish,
+        DaysFresh            = 2,
+        DaysTotallyRotten    = 5,
+        HungerChange         = -42,
+        ThirstChange         = 12,
+        UnhappyChange        = -15,
+        Calories             = 420,
+        Carbohydrates        = 38,
+        Lipids               = 9,
+        Proteins             = 38,
+        StaticModel          = BowlSoup_Ground,
+        WorldStaticModel     = BowlSoup_Ground,
+    }
+
+    item VenisonPotRoast
+    {
+        DisplayCategory      = Food,
+        DisplayName          = Venison Pot Roast,
+        ItemType             = base:food,
+        Weight               = 1.2,
+        Icon                 = Steak,
+        EatType              = 2handforced,
+        BadCold              = false,
+        BadInMicrowave       = true,
+        DangerousUncooked    = false,
+        IsCookable           = false,
+        FoodType             = Meat,
+        DaysFresh            = 2,
+        DaysTotallyRotten    = 5,
+        HungerChange         = -55,
+        ThirstChange         = 4,
+        UnhappyChange        = -12,
+        Calories             = 560,
+        Carbohydrates        = 22,
+        Lipids               = 18,
+        Proteins             = 55,
+        StaticModel          = Steak,
+        WorldStaticModel     = SteakCooked_Ground,
+    }
+
+    item RoastChickenDinner
+    {
+        DisplayCategory      = Food,
+        DisplayName          = Roast Chicken Dinner,
+        ItemType             = base:food,
+        Weight               = 1.2,
+        Icon                 = ChickenFried,
+        EatType              = 2handforced,
+        BadCold              = false,
+        BadInMicrowave       = true,
+        DangerousUncooked    = false,
+        IsCookable           = false,
+        FoodType             = Meat,
+        DaysFresh            = 2,
+        DaysTotallyRotten    = 5,
+        HungerChange         = -52,
+        ThirstChange         = 6,
+        UnhappyChange        = -14,
+        Calories             = 520,
+        Carbohydrates        = 30,
+        Lipids               = 16,
+        Proteins             = 48,
+        StaticModel          = FriedChicken,
+        WorldStaticModel     = FriedChicken_Ground,
+    }
+}

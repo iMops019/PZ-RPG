@@ -27,6 +27,7 @@ common/
         PZRPG_06_VanillaMirror.lua  Events.AddXP -> mirror into skills w/ mirrorVanilla
         PZRPG_07_ActionWrap.lua     PZRPG.wrapAction(cls, method, fn) -- reload-safe
         PZRPG_08_XpDrops.lua        floating "+N Skill" bubbles (accumulated, flushed)
+        PZRPG_09_Buffs.lua          general timed-buff engine (PZRPG.buffs.*) -- COOK-4a
         PZRPG_10_Skill_Woodcutting.lua   \
         PZRPG_11_Skill_Mining.lua        |  one file per skill: tuning table,
         PZRPG_12_Skill_Foraging.lua      |  event hooks / wrapAction / mirror,
@@ -35,6 +36,8 @@ common/
         PZRPG_21_Skill_Firemaking.lua    |  _3N_ combat, _4N_ dexterity.
         PZRPG_22_Skill_Crafting.lua      |
         PZRPG_23_Skill_Cooking.lua       |  Some skills add sibling files:
+        PZRPG_25_CookingRecipes.lua      |  (Field Recipe model + known store);
+        PZRPG_26_PrepareDishAction.lua   |  ISPZRPGPrepareDishAction (COOK-4b);
         PZRPG_30_Skill_Attack.lua        |  PZRPG_46_MineBoulderAction (shared),
                                         |  PZRPG_48_FishAction (shared).
         PZRPG_31_Skill_Strength.lua      |  Combat _3N_ files carry both the XP
@@ -46,6 +49,7 @@ common/
         PZRPG_44_FishingContext.lua  "Fish Here" water context option
         PZRPG_45_MiningContext.lua   "Mine Boulder" world context option
         PZRPG_47_MiningOverlay.lua   depleted-boulder fade + "Depleted 1d 6h" caption
+        PZRPG_49_CookingContext.lua  "Prepare Field Recipe" heat-source menu (COOK-4b)
         PZRPG_50_Sheet.lua           the tabbed ISCollapsableWindow
         PZRPG_51_SheetProfile.lua    Profile tab: vanilla info + RP fields
         PZRPG_52_SheetSkills.lua     Skills tab: skills by category + XP bars
@@ -62,7 +66,7 @@ common/
 - The `_0N_` Core files load before any skill module — a skill calls
   `PZRPG.registerSkill` / `PZRPG.hookEvent` at load time. Core order:
   `00` Core · `01` Save · `02` Registry · `03` Xp · `04` Profile · `05`
-  Exertion · `06` VanillaMirror · `07` ActionWrap · `08` XpDrops.
+  Exertion · `06` VanillaMirror · `07` ActionWrap · `08` XpDrops · `09` Buffs.
 - **Load-order gotcha:** vanilla `shared/TimedActions/*` loads *after* our
   `PZRPG_1N_*` (alphabetical), so a skill that `wrapAction`s such a class must
   do it on `OnGameBoot` (and, for `-debug` reloads, directly too — `wrapAction`
@@ -97,6 +101,7 @@ Everything hangs off one global table, `PZRPG`.
 | `PZRPG.exertion` | table | endurance-softening knobs (`PZRPG_05`) |
 | `PZRPG.mirror` | table | `GLOBAL_MULT` for the vanilla-perk mirror (`PZRPG_06`) |
 | `PZRPG.xpDrops` | table | floating "+N Skill" bubble knobs (`PZRPG_08`) |
+| `PZRPG.buffs` | table | timed-buff engine (`PZRPG_09`): `apply` / `get` / `list` / `clear` / `remaining` |
 | `PZRPG.tuning` | table | per-skill tuning tables, `PZRPG.tuning.<id>` (live-tunable) |
 
 **Skill def fields:** `id`, `name`, `category`, `order`, `describe(level)`,
@@ -257,4 +262,5 @@ Per `ENGINEERING.md` §6. Specifics here:
 | 2026-09-06 | Fishing action = **one cast per progress bar, outcome resolved at bar completion** (was 3 casts/bar on job-delta thresholds) | A catch / "lost it!" firing at 33 % of the bar read as broken. The action re-queues itself for continuous fishing regardless. |
 | 2026-09-06 | **Firemaking** = the vanilla 3-stone campfire (no new object) + 4 layers: PZ RPG sandbox fuel-cap slider (default 12h) overriding `getCampingFuelMax()`; a **flat, non-level** burn-efficiency slowdown (own `SCampfireSystem:lowerFuelAmount`); **level scales ignition chance only** (own `ISLightFromKindle:updateKindling` — catch ↑ / break ↓ with level + a tinder-quality bonus); "rake charcoal" action → Smithing. | User's call. Fuel efficiency is a design constant, not a level effect ("fires last longer" is handled by the flat rebalance + cap); level's whole job is "the fire starts no matter the material". Reuse-vanilla, same as Fishing/Mining. |
 | 2026-09-06 | Firemaking **XP rewards tending, not spam-lighting**: light ≈ 40, feed ≈ 10, + a passive trickle every 10 min while a lit campfire is within **2 tiles**. A campfire mouse-over tooltip surfaces the train hint / time left / heat radius. | The design goal is "keep a fire going at camp", the opposite of OSRS fire-spam. |
+| 2026-09-06 | **No yield-bonus level effects, for any skill.** A level scales speed / chance / quality, never *how much* you get out (logs, ore, plants, fish). Mining's MINE-2 drops the planned mine-speed effect too — it becomes **pick-wear reduction + a chance of coal** only. Foraging gets **no level effect at all** (mirror XP only). | User's call. Keeps scaling grounded and avoids "level 90 clears a forest" (`DESIGN.md` §4). A per-skill yield bonus later is a deliberate exception, not the default. |
 | 2026-09-06 | **Cooking** = vanilla mirror + bonus XP for real cooking; **basic cooked staples scale their restore value with level** off a tier table (Cooked Trout = tier 1); **Field Recipes** = new dish item defs re-using vanilla icons, each a **fixed** heal + **fixed** timed buff + `minLevel` to cook. Recipes are **studied like a book** (timed action, saved progress, longer for rarer ones) into a Field Cookbook UI; 3–4 starters auto-known at creation; strong recipes are world loot. Food-sickness risk untouched. | User's call. Keeps normal food normal, puts the RPG payload in discoverable buff meals; borrowed icons + B42's existing produce/fish/meat palette = ~no art debt. |

@@ -85,7 +85,8 @@ local function reconcileDamage(weapon, level)
     local applied = tonumber(md.PZRPG_strDmg)
     if not applied or applied <= 0 then applied = 1 end
 
-    local factor = 1 + damageBonus(level)
+    -- `strong` buff (COOK-4b meals) adds flat to the level bonus
+    local factor = 1 + damageBonus(level) + ((PZRPG.buffs and PZRPG.buffs.get("strong")) or 0)
     local curMin = weapon:getMinDamage()
     local curMax = weapon:getMaxDamage()
     local tMin   = (curMin / applied) * factor

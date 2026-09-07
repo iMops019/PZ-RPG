@@ -88,10 +88,12 @@ PZRPG.hookEvent("OnPlayerUpdate", "defense.update", function(player)
     -- CMB-1: train on the hit
     PZRPG.addXp(player, "defense", drop * TUNING.XP_PER_HP)
 
-    -- DEF-EFFECT-1: mitigate the hit
+    -- DEF-EFFECT-1: mitigate the hit  (+ `toughness` / `guarded` buffs from COOK-4b meals)
     local level  = PZRPG.getLevel(player, "defense")
-    local blocked = ZombRand(1000) < blockChance(level) * 1000
-    local refund  = blocked and drop or (drop * mitigationFrac(level))
+    local blk    = math.min(0.90, blockChance(level)   + ((PZRPG.buffs and PZRPG.buffs.get("guarded"))   or 0))
+    local mit    = math.min(0.90, mitigationFrac(level) + ((PZRPG.buffs and PZRPG.buffs.get("toughness")) or 0))
+    local blocked = ZombRand(1000) < blk * 1000
+    local refund  = blocked and drop or (drop * mit)
 
     if refund > 0 then
         pcall(function() bd:AddGeneralHealth(refund) end)

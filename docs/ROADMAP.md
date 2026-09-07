@@ -64,9 +64,13 @@ full grid by category.
 Each skill's "how a level helps" (`DESIGN.md` §4). Suggested order, not a
 commitment:
 
-- **WC-2** Woodcutting chop speed · **WC-3** yield bonus · **WC-4** polish.
-- Mining speed / ore chance / pick wear (after Phase 4 content).
-- Foraging rare-find · ~~Fishing bite rate~~ **FISH-2 ✅** (custom
+- **WC-2 ✅** Woodcutting chop speed. (No yield bonus — decided 2026-09-06; no
+  WC-3/WC-4.)
+- **MINE-2** — **pick-wear reduction + a level-scaled chance of coal** on a
+  boulder drop. *No* mine-speed effect, *no* yield bonus (decided 2026-09-06).
+  Maybe a real depletion (sprite swap) instead of the cooldown, still open.
+- Foraging — **no level effect planned** (mirror XP only, user's call
+  2026-09-06). · ~~Fishing bite rate~~ **FISH-2 ✅** (custom
   `ISPZRPGFishAction` — right-click water with a rod; bite rate + species gate +
   bait bonus scale with level; replaces the vanilla minigame) · **FISH-3 ✅**
   size-within-species (level shifts the small/medium/big mix; trophy tail at
@@ -85,22 +89,35 @@ commitment:
     `ISLightFromKindle:updateKindling`, catch-N `300→55` / break-M `300→1400`
     over L1→L100, + a tinder-in-bag multiplier (twigs / paper / sheets). L1 ==
     vanilla. Literature / petrol stay auto-success.
-  - **FIRE-4** — passive tending XP: trickle every 10 min while a lit campfire is
-    within 2 tiles · campfire mouse-over tooltip (train hint, time left, heat
-    radius).
+  - **FIRE-4 ✅** — passive tending XP: `+3 Firemaking` every `EveryTenMinutes`
+    tick while a lit campfire is within 2 tiles of the player (client-only,
+    one trickle/tick).
+  - **FIRE-4.1** — campfire hover tooltip (train hint, time left, heat radius).
+    Vanilla has only a *click*-opened `ISCampingInfoWindow` (fuel + state), no
+    world-object hover tooltip — a real hover panel is its own UI slice.
   - **FIRE-5** — "rake charcoal" action off a burnt-down fire → Smithing input.
 - **Cooking** (design locked 2026-09-06 — `DESIGN.md` §5).
-  - **COOK-2** — keep the vanilla mirror, add bonus PZ RPG XP weighted toward
-    real cooking (raw ingredients / multi-item meals vs. reheating a can).
-  - **COOK-3** — basic cooked staples scale with level: a tier table
-    (`PZRPG.tuning.cooking`), shallow curve on what the food restores (Cooked
-    Trout ≈ 15 HP / 10 hunger at L1 → ≈ 30 / 20 at L30). Eat-time HP-regen
-    mechanic confirmed in-build.
-  - **COOK-4** — Field Recipes: new dish item defs (vanilla icons re-used), fixed
-    heal + fixed timed buff + `minLevel` to cook, a cook action, and the 3–4
-    starter recipes auto-known at character creation.
+  - **COOK-2 ✅** — no code: the vanilla Cooking mirror already scales with
+    recipe involvement, so it *is* the "bonus for real cooking". (B42 has no
+    clean cook/craft-complete Lua event anyway.)
+  - **COOK-3 ✅** — "a cooked meal heals": wrap `ISEatFoodAction:complete`;
+    a cooked/non-burnt/non-rotten food starts a 45-game-min general-health
+    regen, total HP scaled by meal size (`|baseHunger|`) × a level mult
+    (`1.0→2.5` over L1→L100, ≈2× by L30). Canned/raw/burnt heal nothing.
+    Knobs in `PZRPG.tuning.cooking`.
+  - **COOK-4a ✅** — the buff engine (`PZRPG_09_Buffs.lua`): `PZRPG.buffs.apply`
+    / `.get` / `.list` / `.clear` / `.remaining`, per-`OnPlayerUpdate` driver,
+    `scholar` XP-multiplier wrap, `mending` / `infectionResist` / `steady`
+    effects, "Well Fed" halo. `packmule` / `warm` still planned (API work).
+  - **COOK-4a.2 ✅** — `strong` / `toughness` / `guarded` / `vigor` folded into
+    `PZRPG_30/31/32` (one line each).
+  - **COOK-4b ✅** — custom `ISPZRPGPrepareDishAction` + heat-source context
+    menu (`PZRPG_49`, client) + recipe model & known-store & auto-grant
+    (`PZRPG_25`) + 3 starter dish item defs (`pzrpg_food.txt`, vanilla icons) +
+    eat→buff hookup in the COOK-3 wrap.
   - **COOK-5** — recipe *study* action (book-style, saved progress, longer for
-    rarer recipes) → Field Cookbook UI → world-loot distribution.
+    rarer recipes) → Field Cookbook UI → world-loot recipe cards. Also: more
+    recipes, and the `packmule` / `warm` buff types.
 - **Combat effects, one slice each** (careful — `DESIGN.md` §4/§5). Defensive
   skills stay conservative; Attack + Fitness is allowed to spike end-game.
   **ATK-EFFECT-1 ✅** melee swings cost less endurance (held-weapon
@@ -121,8 +138,9 @@ The only skill with no vanilla activity to hook.
   Iron-ore chance scales 8→25% over 1–100.
 - **MINE-1b** — depleted-boulder visuals: `setAlpha` fade + floating
   "Depleted — 1d 6h" text (`PZRPG_47_MiningOverlay`, client).
-- **MINE-2** — mine-speed & pick-wear level effects; maybe a real depletion
-  (sprite swap) instead of just a cooldown; coal / other ores.
+- **MINE-2** — pick-wear reduction + a level-scaled coal-drop chance on a
+  boulder. **No mine-speed effect, no yield bonus** (decided 2026-09-06). Maybe
+  a real depletion (sprite swap) instead of the cooldown — still open.
 
 ## Later / unscheduled
 
