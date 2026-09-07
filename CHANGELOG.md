@@ -19,6 +19,20 @@ project uses SemVer and is in `0.x` (anything may change).
   game is not actually paused) whenever it's open.
 
 ### Added
+- **Firemaking — FIRE-3** (level → kindle ignition, and *only* that): `PZRPG_21`
+  forks vanilla `ISLightFromKindle:updateKindling` (B42 42.20.4) and swaps its
+  two flat `ZombRand(300)` bounds for level-driven ones —
+  - **catch-N** `300 → 55` over L1→L100 (`(lvl/100)^0.85`): a friction fire
+    lights ~5× sooner at max level. L1 == vanilla.
+  - **break-M** `300 → 1400` (`^1.0`): kindling snaps far less as you level.
+  - carrying **real tinder** (twigs / paper / sheets — `ISCampingMenu.isValidTinder`,
+    excluding the branch being rubbed) multiplies catch-N ×0.55 and break-M
+    ×1.25 again; Wilderness Knowledge / Scout keep their vanilla ×0.5 / ×1.5.
+  Endurance drain, the 20 %-progress gate and the server/client completion
+  branches stay verbatim. Literature / petrol lighting is still auto-success.
+  Straight method replace (reload-safe, no wrap). Knobs `KINDLE_*` in
+  `PZRPG.tuning.firemaking`; sheet blurb shows the current "% faster than a
+  novice".
 - **Firemaking — FIRE-2** (fire lasts longer; first PZ RPG sandbox option):
   - New sandbox option **`PZRPG.MaximumFireFuelHours`** (`common/media/sandbox-options.txt`,
     integer 1–48, default **12**), page "PZ RPG". `PZRPG_21` re-points the bare

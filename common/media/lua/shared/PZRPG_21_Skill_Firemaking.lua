@@ -16,15 +16,19 @@
                                           flat, *non-level* efficiency rebalance,
                                           same spirit as PZRPG_05_Exertion)
 
-    Firemaking *level* does nothing here yet -- FIRE-3 makes level scale the
-    kindle ignition chance (and only that). "Fires last longer" is handled by
-    the flat BURN_RATE + the raised cap, not by level.
+    FIRE-3: Firemaking *level* scales the kindle (friction) ignition -- and only
+    that. We fork ISLightFromKindle:updateKindling (B42 42.20.4) and swap its two
+    flat ZombRand(300) bounds for level-driven ones: higher level catches sooner
+    and snaps the kindling far less; carrying real tinder (twigs / paper /
+    sheets) helps more again. Literature / petrol lighting stays auto-success.
+    "Fires last longer" is still the flat BURN_RATE + raised cap, not level.
 
-    Load order: _21_ -> after Core (_00-07). Vanilla Camping actions load under
-    shared/Camping/ (before us); server/Camping/*.lua defines getCampingFuelMax /
-    SCampfireSystem and loads *after* shared -- hence both re-points wait for
-    OnGameBoot. (MP: server-authoritative burn already runs server-side; the cap
-    override also runs in the client context for the add-fuel menu preview.)
+    Load order: _21_ -> after Core (_00-07). Vanilla Camping actions
+    (ISLightFromKindle, ...) load under shared/Camping/ *before* us, so the
+    kindle fork applies at load; server/Camping/*.lua defines getCampingFuelMax /
+    SCampfireSystem *after* shared, so those two re-points wait for OnGameBoot.
+    (MP: server-authoritative burn already runs server-side; the cap override
+    also runs in the client context for the add-fuel menu preview.)
 ]]
 
 PZRPG.tuning = PZRPG.tuning or {}
@@ -36,8 +40,40 @@ PZRPG.tuning.firemaking = PZRPG.tuning.firemaking or {
     FUEL_MAX_HOURS = 12,      -- fallback if the sandbox option isn't readable
     BURN_RATE      = 0.75,    -- fuel-minutes burned per real minute per lit fire
                              -- (1.0 = vanilla; 0.75 => a 6h log lasts ~8h)
+
+    -- FIRE-3: kindle (friction) ignition, scaled by Firemaking level.
+    -- Vanilla's updateKindling rolls ZombRand(N)==0 each tick to CATCH, and
+    -- ZombRand(M)==0 to SNAP the kindling. Lower catch-N = lights sooner;
+    -- higher break-M = kindling lasts longer. Vanilla is a flat 300 / 300
+    -- (150 / 450 with Wilderness Knowledge or Scout).
+    KINDLE_CATCH_L1    = 300,   -- mean ticks to catch at level 1 (= vanilla)
+    KINDLE_CATCH_L100  = 55,    -- ...at level 100
+    KINDLE_CATCH_EXP   = 0.85,
+    KINDLE_BREAK_L1    = 300,   -- mean ticks to snap the kindling at level 1 (= vanilla)
+    KINDLE_BREAK_L100  = 1400,  -- ...at level 100
+    KINDLE_BREAK_EXP   = 1.0,
+    KINDLE_TINDER_CATCH_MULT = 0.55,  -- catch-N multiplier when real tinder is in the bag
+    KINDLE_TINDER_BREAK_MULT = 1.25,  -- break-M multiplier when real tinder is in the bag
+    KINDLE_TRAIT_CATCH_MULT  = 0.5,   -- Wilderness Knowledge / Scout, kept from vanilla
+    KINDLE_TRAIT_BREAK_MULT  = 1.5,
 }
 local TUNING = PZRPG.tuning.firemaking
+
+local function frac(level)
+    return math.max(0, math.min(1, (level or 1) / 100))
+end
+
+--- Mean ticks to catch a friction fire at this level (lower = lights sooner).
+local function kindleCatchTries(level)
+    local a, b = TUNING.KINDLE_CATCH_L1, TUNING.KINDLE_CATCH_L100
+    return math.max(1, math.floor(a - (a - b) * (frac(level) ^ TUNING.KINDLE_CATCH_EXP)))
+end
+
+--- Mean ticks to snap the kindling at this level (higher = lasts longer).
+local function kindleBreakTries(level)
+    local a, b = TUNING.KINDLE_BREAK_L1, TUNING.KINDLE_BREAK_L100
+    return math.max(1, math.floor(a + (b - a) * (frac(level) ^ TUNING.KINDLE_BREAK_EXP)))
+end
 
 PZRPG.registerSkill{
     id       = "firemaking",
@@ -45,8 +81,10 @@ PZRPG.registerSkill{
     category = "production",
     order    = 60,
     describe = function(level)
-        return "Lighting and tending fires. Trains when you light or feed a campfire. "
-            .. "(Level scales ignition odds: FIRE-3.)"
+        local faster = math.floor((1 - kindleCatchTries(level) / TUNING.KINDLE_CATCH_L1) * 100 + 0.5)
+        return ("Lighting and tending fires. Friction fires catch ~%d%% faster than a novice's; "
+            .. "real tinder (twigs, paper) in your bag helps more. Trains on light / feed.")
+            :format(faster)
     end,
 }
 
@@ -131,6 +169,81 @@ local function installBurnRate()
 end
 
 ---------------------------------------------------------------------------
+-- FIRE-3: Firemaking level scales the kindle (friction) ignition
+---------------------------------------------------------------------------
+
+--- True if the character carries a valid fire tinder (twigs, paper, sheets,
+--- literature ...) other than `exclude` (the branch being rubbed).
+local function hasTinder(character, exclude)
+    local inv = character and character:getInventory()
+    if not inv or not (ISCampingMenu and ISCampingMenu.isValidTinder) then return false end
+    local ok, res = pcall(function()
+        return inv:getFirstEvalRecurse(function(it)
+            return it ~= nil and it ~= exclude and ISCampingMenu.isValidTinder(it)
+        end)
+    end)
+    return ok and res ~= nil
+end
+
+--- catch-N, break-M for this attempt (level + tinder + the vanilla traits).
+local function kindleOdds(character, level, tinderItem)
+    local catch = kindleCatchTries(level)
+    local brk   = kindleBreakTries(level)
+    if hasTinder(character, tinderItem) then
+        catch = catch * TUNING.KINDLE_TINDER_CATCH_MULT
+        brk   = brk   * TUNING.KINDLE_TINDER_BREAK_MULT
+    end
+    local okT, hasT = pcall(function()
+        return character:hasTrait(CharacterTrait.WILDERNESS_KNOWLEDGE)
+            or character:hasTrait(CharacterTrait.SCOUT)
+    end)
+    if okT and hasT then
+        catch = catch * TUNING.KINDLE_TRAIT_CATCH_MULT
+        brk   = brk   * TUNING.KINDLE_TRAIT_BREAK_MULT
+    end
+    return math.max(1, math.floor(catch)), math.max(1, math.floor(brk))
+end
+
+--- Our fork of vanilla ISLightFromKindle:updateKindling (B42 42.20.4). Only the
+--- two ZombRand bounds change -- they come from Firemaking level + tinder now,
+--- not a flat 300 / 300. Endurance drain, the 20 %-progress gate, the
+--- server/client completion branches and the kindling-snap all stay verbatim.
+local function pzrpgUpdateKindling(self)
+    self.character:getStats():remove(CharacterStat.ENDURANCE, 0.0001 * getGameTime():getMultiplier())
+    if not isServer() then
+        if self:getJobDelta() < 0.2 then return end
+    else
+        if self.netAction:getProgress() < 0.2 then return end
+    end
+
+    local lvl = PZRPG.getLevel(self.character, "firemaking")
+    local randNumber, randBrokeNumber = kindleOdds(self.character, lvl, self.item)
+
+    if ZombRand(randNumber) == 0 then
+        local campfire = SCampfireSystem.instance:getLuaObjectAt(self.campfire.x, self.campfire.y, self.campfire.z)
+        if campfire then campfire:lightFire() end
+        if isServer() then self.netAction:forceComplete() else self:forceComplete() end
+    elseif ZombRand(randBrokeNumber) == 0 then
+        -- the wood kit broke
+        self.character:getInventory():Remove(self.item)
+        sendRemoveItemFromContainer(self.character:getInventory(), self.item)
+        if isServer() then
+            sendPlaySound("BreakWoodItem", false, self.character)
+            self.item = nil
+            self.netAction:forceComplete()
+        else
+            self.character:getEmitter():playSound("BreakWoodItem")
+            self:forceComplete()
+        end
+    end
+end
+
+local function installKindle()
+    if type(ISLightFromKindle) ~= "table" then return end
+    ISLightFromKindle.updateKindling = pzrpgUpdateKindling   -- straight replace, reload-safe
+end
+
+---------------------------------------------------------------------------
 
 local function install()
     if ISLightFromKindle     then PZRPG.wrapAction(ISLightFromKindle,     "perform", onKindlePerform) end
@@ -139,12 +252,14 @@ local function install()
     if ISAddFuelAction       then PZRPG.wrapAction(ISAddFuelAction,       "perform", onAddFuelPerform) end
     installFuelCap()
     installBurnRate()
+    installKindle()
 end
 
 local function installAndLog()
     install()
-    PZRPG.log(("firemaking: fuel cap %.0fh, burn rate %.2f/min")
-        :format(pzrpgFuelMaxMinutes() / 60, TUNING.BURN_RATE or 1))
+    PZRPG.log(("firemaking: fuel cap %.0fh, burn rate %.2f/min, kindle catch L1..L100 %d..%d")
+        :format(pzrpgFuelMaxMinutes() / 60, TUNING.BURN_RATE or 1,
+                kindleCatchTries(1), kindleCatchTries(100)))
 end
 
 install()                                                       -- -debug reload / late-load

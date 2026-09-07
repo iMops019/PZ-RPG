@@ -77,13 +77,14 @@ commitment:
   unlocks · Crafting quality · Dexterity stealth radius & noise.
 - **Firemaking** (design locked 2026-09-06 — `DESIGN.md` §5). Physical system =
   the vanilla 3-stone campfire, no new object.
-  - **FIRE-2** — fuel cap: PZ RPG sandbox slider (default 12h) overriding
+  - **FIRE-2 ✅** — fuel cap: PZ RPG sandbox slider (default 12h) overriding
     `getCampingFuelMax()` · flat always-on burn-efficiency slowdown
     (`PZRPG.tuning.firemaking`, *not* level-scaled) · rebalance the FIRE-1 XP
     numbers (light ≈ 40, feed ≈ 10).
-  - **FIRE-3** — level → **ignition chance only**: own
-    `ISLightFromKindle:updateKindling`, scale catch-odds ↑ / kindling-break ↓
-    with level, + a bonus when real tinder (twigs / paper / sheets) is on hand.
+  - **FIRE-3 ✅** — level → **ignition chance only**: fork
+    `ISLightFromKindle:updateKindling`, catch-N `300→55` / break-M `300→1400`
+    over L1→L100, + a tinder-in-bag multiplier (twigs / paper / sheets). L1 ==
+    vanilla. Literature / petrol stay auto-success.
   - **FIRE-4** — passive tending XP: trickle every 10 min while a lit campfire is
     within 2 tiles · campfire mouse-over tooltip (train hint, time left, heat
     radius).
