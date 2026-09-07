@@ -36,9 +36,10 @@ common/
         PZRPG_22_Skill_Crafting.lua      |
         PZRPG_23_Skill_Cooking.lua       |  Some skills add sibling files:
         PZRPG_30_Skill_Attack.lua        |  PZRPG_46_MineBoulderAction (shared).
-        PZRPG_31_Skill_Strength.lua      |
-        PZRPG_32_Skill_Defense.lua       |
-        PZRPG_33_Skill_Constitution.lua  |
+        PZRPG_31_Skill_Strength.lua      |  Combat _3N_ files carry both the XP
+        PZRPG_32_Skill_Defense.lua       |  hook and the level effect (ATK/STR:
+        PZRPG_33_Skill_Constitution.lua  |  held-weapon stat top-up; DEF/CONST:
+                                        |  OnPlayerUpdate health/wound nudges).
         PZRPG_40_Skill_Dexterity.lua     /
       client/
         PZRPG_45_MiningContext.lua   "Mine Boulder" world context option
@@ -245,3 +246,6 @@ Per `ENGINEERING.md` §6. Specifics here:
 | 2026-09-06 | First-run welcome does NOT pause the sim | `setGameSpeed(0)` freezes the input loop the sheet's text fields need — the player couldn't type. Game stays live; spawn is a safe interior. (Tried pause first; reverted after in-game test.) |
 | 2026-09-06 | Skills feed vanilla Fitness/Strength XP; `def.vanillaXp` map routed by `addXp` | Realism + physical skills stay worth training. `DESIGN.md` §3a. |
 | 2026-09-06 | PZ RPG softens vanilla endurance drain (`PZRPG_05_Exertion`) — a deliberate vanilla rebalance | Vanilla "chop once, sit down" fights "let the player play". One knob, off-able. `DESIGN.md` §3a. |
+| 2026-09-06 | Combat level effects: two mechanisms only — (a) top up the equipped `HandWeapon` instance's own stats, reconciled against a factor/delta stored on the weapon's modData so it never compounds; (b) per-tick `OnPlayerUpdate` health/wound nudges (`AddGeneralHealth`, `setBleedingTime`). | B42 melee resolution is 100% Java-side — no Lua hook inside the hit/damage/endurance/bleed calc. `DESIGN.md` §5. |
+| 2026-09-06 | Combat ceiling: conservative for the defensive skills; **Attack + Fitness is allowed to feel god-tier by end-game** | Deliberate reward for a deep melee-survival grind; the defensive skills stay grounded because "PZ death is the point". User's call. `DESIGN.md` §5. |
+| 2026-09-06 | Split: **Defense** = general-health damage reduction; **Constitution** = wound-side resilience (bleed/regen) + infection resist | Keeps the two "take a hit" skills distinct instead of both being flat DR. User's call (Choice 1). |

@@ -74,8 +74,10 @@ commitment:
   **ATK-EFFECT-1 ✅** melee swings cost less endurance (held-weapon
   `enduranceMod`). **STR-EFFECT-1 ✅** +melee damage (held-weapon min/max).
   **DEF-EFFECT-1 ✅** block chance + damage reduction (health-drop refund).
-  Next: **CONST-EFFECT-2** resilience (bleed/pain/regen) · **STR-EFFECT-2**
-  carry capacity + shove · **DEF-EFFECT-2** real pre-hit dodge.
+  **CONST-EFFECT-2 ✅** resilience — faster bleed stop + slow regen while hurt.
+  The combat cluster's first effects are all in. Later: **STR-EFFECT-2** carry
+  capacity + shove · **DEF-EFFECT-2** real pre-hit dodge · **ATK-EFFECT-2**
+  attack through the exhausted-endurance lockout.
 
 ## Phase 4 — Mining content
 

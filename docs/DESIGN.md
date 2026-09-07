@@ -225,9 +225,15 @@ already watch for XP (same idiom as `PZRPG_05_Exertion`).
   decides *whether* infection happens; we only get a save at transmission, never
   a cure. L100 ≈ 55% on scratches, 20% on bites — a maxed character still dies
   to most bites. Coefficients in `PZRPG_33_Skill_Constitution.lua` TUNING.
-- **Constitution → resilience** (CONST-EFFECT-2, planned): injury-side, *not*
-  more flat damage reduction (that's Defense's lane) — slower bleed, reduced
-  pain, slightly faster body-part regen. Kept modest.
+- **Constitution → resilience** (CONST-EFFECT-2): the injury-side counterpart
+  to Defense's flat damage reduction. Two transient per-tick nudges in
+  `PZRPG_33` (no persistent state written): (1) **bleeding resolves faster** —
+  shave `0 → 2 %` (L100, `(lvl/100)^1.3`) off every bleeding part's remaining
+  `getBleedingTime()` each tick, so a bleed at max Constitution ends ~2–3× as
+  fast; (2) **slow passive regen while hurt** — `bd:AddGeneralHealth` up to
+  `+0.004/tick` (L100, `(lvl/100)^1.4`, near-zero below ~L40), but *only* when
+  not bleeding and not on a tick a hit landed (Defense's watcher owns those).
+  Kept modest. `PZRPG_33_Skill_Constitution.lua` TUNING.
 
 ### Dexterity umbrella
 

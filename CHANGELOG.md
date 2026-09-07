@@ -19,6 +19,15 @@ project uses SemVer and is in `0.x` (anything may change).
   game is not actually paused) whenever it's open.
 
 ### Added
+- **Constitution — CONST-EFFECT-2** (resilience): the injury-side counterpart to
+  Defense's damage reduction. Two transient per-`OnPlayerUpdate` nudges, nothing
+  persistent written: (1) **bleeding resolves faster** — each tick shave
+  `0 → 2%` (L100, `(lvl/100)^1.3`) off every bleeding part's `getBleedingTime()`
+  (a bleed ends ~2–3× as fast at max), zeroing + `setBleeding(false)` under 0.05;
+  (2) **slow passive regen while hurt** — `bd:AddGeneralHealth` up to
+  `+0.004/tick` (L100, `(lvl/100)^1.4`, ~nil below L40), only when not bleeding
+  and not on a tick health dropped (Defense owns those). TUNING moved to
+  `PZRPG.tuning.constitution`; sheet blurb reworded.
 - **Defense — DEF-EFFECT-1**: the body-health drop `PZRPG_32` already watches
   for XP is now also *mitigated*. Per qualifying hit: roll a **block**
   (`0 → 20%` at L100) → the whole tick's HP loss is refunded
