@@ -157,9 +157,83 @@ Grouped roughly. Order of implementation is set in the ROADMAP, not here.
 | Skill | Trains by | Level effect _(sketch)_ | Notes |
 | --- | --- | --- | --- |
 | **Smithing** | Smelting ore, forging at an anvil | Unlocks recipe tiers; less material waste; better durability on smithed items | Iron Ore → Iron Bar → tools/weapons/armor. **Progression = an unlock tree of "metal" items** revealed as level rises. |
-| **Firemaking** _(later)_ | Lighting/keeping fires, making charcoal | Light speed, fuel efficiency | Charcoal feeds Smithing |
-| **Cooking** _(later)_ | Preparing food (any cooking action) | Better nutrition from a meal, less burning/spoilage, fewer bad results | Fed by Foraging / Fishing / Farming; feeds survival |
+| **Firemaking** | Lighting fires + a passive trickle while a fire you're near stays lit; raking charcoal | **Ignition chance only** — higher level lights a fire more reliably, whatever the material (see below) | Charcoal feeds Smithing |
+| **Cooking** | Any cooking action (vanilla-mirrored) + a bonus for cooking from raw; studying found recipes | Basic cooked staples restore more as you level; Field Recipes gate on level to cook (see below) | Fed by Foraging / Fishing / Farming / hunting; feeds survival |
 | **Crafting / Fletching** _(later)_ | Working leather, wood, bone | Recipe unlocks, quality | Ties Woodcutting + hunting |
+
+### Firemaking  (decided 2026-09-06)
+
+No vanilla perk maps to it. The **physical system is the vanilla 3-stone campfire**
+— no new world object. Firemaking layers four things onto it:
+
+- **Fuel cap raised.** Vanilla caps a fire at `MaximumFireFuelHours` (default 8h;
+  the ~6h number some remember is only the light-radius/smoke scaling). PZ RPG
+  adds its own sandbox slider, **default 12h**, and overrides the global
+  `getCampingFuelMax()` to honour it. A day of doing other things shouldn't come
+  back to a dead fire.
+- **Flat burn efficiency.** A fixed, *always-on, not level-scaled* slowdown on
+  fuel drain (`SCampfireSystem:lowerFuelAmount` is plain Lua) — one knob in
+  `PZRPG.tuning.firemaking`, ~0.75×/min to start. A deliberate vanilla rebalance
+  in the same spirit as Exertion (§3a).
+- **Level → ignition chance, nothing else.** Vanilla's kindle action
+  (`ISLightFromKindle:updateKindling`, Lua) is a fixed `ZombRand(300)`/tick race
+  to catch vs. snap your kindling. PZ RPG owns that method: catch-odds climb and
+  break-odds fall with Firemaking level, **plus a bonus when real tinder
+  (twigs / paper / sheets) is in the bag** — "twigs and paper start better than
+  logs." Literature / petrol lighting stays auto-success (skill fantasy is
+  friction ignition). Fuel efficiency is *not* a level effect — the flat
+  rebalance already covers "fires last longer."
+- **Charcoal output.** A "rake charcoal" action on a burnt-down fire → real B42
+  charcoal items, feeds Smithing, trains Firemaking. Firemaking's skill-web
+  output from day one.
+
+**XP model — reward *keeping* a fire, not spamming lights.** Lighting ≈ 40,
+feeding fuel ≈ 10, **plus a passive trickle every 10 min while a lit campfire is
+within 2 tiles of you** (a day at camp ≈ a few lightings' worth). A campfire
+mouse-over tooltip shows "Stand near to train Firemaking", time left, heat
+radius.
+
+Slices: **FIRE-2** cap slider + flat efficiency + XP rebalance · **FIRE-3**
+ignition scaling + tinder bonus · **FIRE-4** passive tending XP + hover tooltip ·
+**FIRE-5** charcoal.
+
+### Cooking  (decided 2026-09-06)
+
+Still vanilla-mirrored (`mirrorVanilla = { Cooking = 1.0 }`). Two layers:
+
+- **Basic cooked food scales with level.** A tuning table of staple cooked foods
+  by *tier* (Cooked Trout = tier 1 — "every kid learns to cook a fish"). Level
+  raises what the food restores on a shallow curve — e.g. Cooked Trout ≈ 15 HP /
+  10 hunger at L1 → ≈ 30 HP / 20 hunger by L30, flattening after. _(Mechanic to
+  confirm when built: a brief HP-regen window on eating a properly-cooked staple,
+  scaled by tier × level; vanilla nutrition left alone. Numbers all tunable.)_
+  Normal food (deer venison, chicken, …) keeps its normal vanilla value and still
+  grants Cooking XP.
+- **Field Recipes** _(the marquee feature, later)_ — special recipes that produce
+  a meal granting a **fixed timed buff** (e.g. *Bountiful Trout Platter* = raw
+  trout + berries + onion + potatoes → 2h reduced infection chance). Each recipe
+  has a **fixed** heal / hunger value, a **fixed** buff, and a **`minLevel` to
+  cook**. Result items are **new item defs re-using vanilla food icons** — no art
+  debt; B42's ingredient palette (`BerryGeneric` / `BerryBlack` / `BerryBlue`,
+  `Potato` / `Onion` / `Carrots` / `Cabbage` / `Tomato` / `BellPepper`, `Apple`,
+  `Grapes`, the fish list, venison, chicken) already covers inputs.
+  - **Learning:** a found recipe is *studied* like reading a book — a timed
+    action with saved progress you resume across sessions. Rarer / stronger
+    recipes take much longer to finish ("practicing the meal in your head" until
+    it's learned). On completion it enters a **Field Cookbook UI**; the item is
+    consumed.
+  - **Starter set:** 3–4 basic buff recipes (fish, venison, chicken; small
+    buffs) **auto-known at character creation** — nothing in inventory. The
+    strong recipes are world loot.
+
+- **XP:** mirror + a bonus weighted toward real cooking (raw ingredients /
+  multi-item meals, not reheating a can).
+- **Food-sickness risk is left alone** — bad ingredients stay bad; Cooking level
+  doesn't touch food poisoning.
+
+Slices: **COOK-2** mirror + bonus XP · **COOK-3** staple-food level scaling +
+tier table · **COOK-4** Field Recipe items + buffs + cook action + starter set ·
+**COOK-5** recipe study action + Field Cookbook UI + world loot.
 
 ### Combat
 

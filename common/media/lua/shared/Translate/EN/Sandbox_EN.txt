@@ -1,0 +1,8 @@
+Sandbox_EN = {
+
+    Sandbox_PZRPG = "PZ RPG",
+
+    Sandbox_PZRPG_MaximumFireFuelHours = "Max fire fuel (hours)",
+    Sandbox_PZRPG_MaximumFireFuelHours_tooltip = "The most fuel a campfire, wood stove etc. can hold, in hours. Overrides the vanilla Maximum Fire Fuel Hours setting. Default 12. A change needs a new game or a restart.",
+
+}

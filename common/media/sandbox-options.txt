@@ -1,0 +1,7 @@
+VERSION = 1,
+
+option PZRPG.MaximumFireFuelHours
+{
+	type = integer, min = 1, max = 48, default = 12,
+	page = PZRPG, translation = PZRPG_MaximumFireFuelHours,
+}

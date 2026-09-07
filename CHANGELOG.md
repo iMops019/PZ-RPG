@@ -19,6 +19,22 @@ project uses SemVer and is in `0.x` (anything may change).
   game is not actually paused) whenever it's open.
 
 ### Added
+- **Firemaking — FIRE-2** (fire lasts longer; first PZ RPG sandbox option):
+  - New sandbox option **`PZRPG.MaximumFireFuelHours`** (`common/media/sandbox-options.txt`,
+    integer 1–48, default **12**), page "PZ RPG". `PZRPG_21` re-points the bare
+    global `getCampingFuelMax()` at it on `OnGameBoot`, so campfire / BBQ / stove
+    all honour our cap instead of vanilla's `MaximumFireFuelHours` (default 8h).
+  - **Flat burn-efficiency rebalance** — `SCampfireSystem:lowerFuelAmount` is
+    reimplemented to drain `TUNING.BURN_RATE` (default **0.75**) fuel-minutes per
+    real minute per lit fire instead of a flat 1, so a 6h log lasts ~8h. Flat and
+    *not* level-scaled (same spirit as `PZRPG_05_Exertion`); one knob in
+    `PZRPG.tuning.firemaking`. Firemaking *level* still does nothing — level →
+    ignition chance is FIRE-3.
+  - FIRE-1 XP numbers moved into `PZRPG.tuning.firemaking` and rebalanced down
+    (light 150→**40**, attempt 20→**8**, add-fuel 15→**10**) ahead of FIRE-4's
+    passive tending trickle.
+  - Both re-points are guard-free straight assignments (a `-debug` reload just
+    re-applies). `Sandbox_EN.txt` added for the option's label + tooltip.
 - **Fishing — FISH-4 (reverted) + cast timing fix**: FISH-4 tried to drive the
   `FishingStage` anim variable from the action and suppress vanilla's
   auto-spawned `FishingManager` — in-game that *killed* the animation (the
@@ -277,6 +293,20 @@ project uses SemVer and is in `0.x` (anything may change).
   mod discovery can be confirmed. No systems yet.
 
 ### Decided
+- **Firemaking design locked** (`DESIGN.md` §5, `ROADMAP.md` Phase 3) — vanilla
+  3-stone campfire, no new object. Four layers: PZ RPG sandbox fuel-cap slider
+  (default 12h) overriding `getCampingFuelMax()`; a flat, *non*-level
+  burn-efficiency slowdown; **level scales ignition chance only** (catch ↑ /
+  kindling-break ↓ + a bonus for real tinder in the bag); a "rake charcoal"
+  action feeding Smithing. XP rewards *tending* — light ≈ 40, feed ≈ 10, + a
+  passive trickle every 10 min within 2 tiles of a lit fire; campfire hover
+  tooltip. Slices FIRE-2…FIRE-5.
+- **Cooking design locked** (`DESIGN.md` §5, `ROADMAP.md` Phase 3) — vanilla
+  mirror + bonus XP for cooking from raw; basic cooked staples scale their
+  restore value with level off a tier table; **Field Recipes** = new dish items
+  (vanilla icons re-used) with a fixed heal + fixed timed buff + `minLevel`,
+  *studied* like a book into a Field Cookbook UI, 3–4 starters auto-known, strong
+  ones as world loot. Food-sickness risk untouched. Slices COOK-2…COOK-5.
 - **One mod, internally modular** (not core + separate skill mods yet) — the
   Core API is unproven and B42 local-mod dependencies are fragile. Revisit at
   1.0. See `DESIGN.md` §8.

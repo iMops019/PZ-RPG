@@ -73,10 +73,33 @@ commitment:
   L72+) · **FISH-4** animation — tried driving `FishingStage` + suppressing
   vanilla's `FishingManager`; it killed the anim in-game, reverted. Vanilla's
   manager animates the cast/idle pose for free while a rod is held facing
-  water. Kept the "one cast per progress bar" timing fix. · Cooking nutrition
-  & waste ·
-  Firemaking light speed & fuel efficiency · Smithing recipe-tier unlocks ·
-  Crafting quality · Dexterity stealth radius & noise.
+  water. Kept the "one cast per progress bar" timing fix. · Smithing recipe-tier
+  unlocks · Crafting quality · Dexterity stealth radius & noise.
+- **Firemaking** (design locked 2026-09-06 — `DESIGN.md` §5). Physical system =
+  the vanilla 3-stone campfire, no new object.
+  - **FIRE-2** — fuel cap: PZ RPG sandbox slider (default 12h) overriding
+    `getCampingFuelMax()` · flat always-on burn-efficiency slowdown
+    (`PZRPG.tuning.firemaking`, *not* level-scaled) · rebalance the FIRE-1 XP
+    numbers (light ≈ 40, feed ≈ 10).
+  - **FIRE-3** — level → **ignition chance only**: own
+    `ISLightFromKindle:updateKindling`, scale catch-odds ↑ / kindling-break ↓
+    with level, + a bonus when real tinder (twigs / paper / sheets) is on hand.
+  - **FIRE-4** — passive tending XP: trickle every 10 min while a lit campfire is
+    within 2 tiles · campfire mouse-over tooltip (train hint, time left, heat
+    radius).
+  - **FIRE-5** — "rake charcoal" action off a burnt-down fire → Smithing input.
+- **Cooking** (design locked 2026-09-06 — `DESIGN.md` §5).
+  - **COOK-2** — keep the vanilla mirror, add bonus PZ RPG XP weighted toward
+    real cooking (raw ingredients / multi-item meals vs. reheating a can).
+  - **COOK-3** — basic cooked staples scale with level: a tier table
+    (`PZRPG.tuning.cooking`), shallow curve on what the food restores (Cooked
+    Trout ≈ 15 HP / 10 hunger at L1 → ≈ 30 / 20 at L30). Eat-time HP-regen
+    mechanic confirmed in-build.
+  - **COOK-4** — Field Recipes: new dish item defs (vanilla icons re-used), fixed
+    heal + fixed timed buff + `minLevel` to cook, a cook action, and the 3–4
+    starter recipes auto-known at character creation.
+  - **COOK-5** — recipe *study* action (book-style, saved progress, longer for
+    rarer recipes) → Field Cookbook UI → world-loot distribution.
 - **Combat effects, one slice each** (careful — `DESIGN.md` §4/§5). Defensive
   skills stay conservative; Attack + Fitness is allowed to spike end-game.
   **ATK-EFFECT-1 ✅** melee swings cost less endurance (held-weapon
